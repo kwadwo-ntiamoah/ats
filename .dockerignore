@@ -1,0 +1,14 @@
+Dockerfile
+.dockerignore
+
+node_modules/
+.next/
+.env.local
+.env.*.local
+
+**/.git
+**/.gitignore
+README.md
+AGENTS.md
+CLAUDE.md
+FLOW.md
