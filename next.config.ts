@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "/**": ["./logs/**/*", "./deploy/**/*"],
   },
+  outputFileTracingIncludes: {
+    "/**/*": ['./node_modules/next/dist/server/dev/browser-logs/**/*'],
+    "/*": ['./node_modules/next/dist/server/dev/browser-logs/**/*']
+  },
   experimental: {
     serverActions: {
       // Default is 1 MB; the selfie (base64) is posted through a server action.
