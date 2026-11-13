@@ -6,11 +6,12 @@ import { getCookieValue } from "../network/session"
 import { AirtimeFormValues, airtimeSchema } from "../validations/airtime"
 
 type BuyAirtimeResult =
-    | { success: true; reference: string }
+    | { success: true; reference: string; receiptToken: string | null }
     | { success: false; error: string }
 
 type BuyAirtimeApiResult = {
     reference: string
+    receiptToken: string | null
 }
 
 export async function buyAirtimeAsync(values: AirtimeFormValues): Promise<BuyAirtimeResult> {
@@ -46,7 +47,7 @@ export async function buyAirtimeAsync(values: AirtimeFormValues): Promise<BuyAir
 
         var apiData = jsonResponse as BuyAirtimeApiResult
 
-        return { success: true, reference: apiData.reference }
+        return { success: true, reference: apiData.reference, receiptToken: apiData.receiptToken ?? null }
     } catch (err) {
         console.error(err)
 

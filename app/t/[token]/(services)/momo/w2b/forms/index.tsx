@@ -1,5 +1,6 @@
 "use client"
 
+import { DownloadReceiptButton } from "@/components/download-receipt-button"
 import { FormSkeleton } from "@/components/form-skeleton"
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp"
 import { Button } from "@/components/ui/button"
@@ -20,9 +21,9 @@ import { NETWORK_OPTIONS } from "@/lib/constants/networks"
 import { WalletToBankFormValues, walletToBankSchema } from "@/lib/validations/momo"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { IconArrowBack } from "@tabler/icons-react"
-import { BanknoteIcon, CheckIcon, CodeIcon, DownloadIcon, LightbulbIcon, ShieldAlertIcon, SmartphoneIcon, WalletIcon } from "lucide-react"
+import { BanknoteIcon, CheckIcon, CodeIcon, LightbulbIcon, ShieldAlertIcon, SmartphoneIcon, WalletIcon } from "lucide-react"
 import Image from "next/image"
-import { useEffect, useRef, useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form"
 
 const POLL_INTERVAL_MS = 5000
@@ -49,6 +50,7 @@ type WalletToBankEnquiry = {
 
 type WalletToBankReceipt = WalletToBankEnquiry & {
     reference: string
+    receiptToken: string | null
     completedAt: Date
 }
 
@@ -104,13 +106,14 @@ export default function WalletToBankForm() {
         })
     }
 
-    function handleResolved(resolvedStatus: WalletToBankStatus, resolvedReference: string) {
+    function handleResolved(resolvedStatus: WalletToBankStatus, resolvedReference: string, receiptToken: string | null) {
         setStatus(resolvedStatus)
 
         if (resolvedStatus === "successful" && transferDetails) {
             setReceipt({
                 ...transferDetails,
                 reference: resolvedReference,
+                receiptToken,
                 completedAt: new Date(),
             })
         }
@@ -544,7 +547,7 @@ function AuthorizationGuide({
     step: number
     reference?: string
     toAccount: string
-    onResolved: (status: WalletToBankStatus, reference: string) => void
+    onResolved: (status: WalletToBankStatus, reference: string, receiptToken: string | null) => void
 }) {
     useEffect(() => {
         if (step !== 2 || !reference) return;
@@ -564,14 +567,14 @@ function AuthorizationGuide({
             if (response.success && response.status === "successful") {
                 cancelled = true
                 clearInterval(timer)
-                onResolved("successful", reference)
+                onResolved("successful", reference, response.receiptToken)
                 return;
             }
 
             if ((response.success && response.status === "failed") || pollCount >= MAX_POLLS) {
                 cancelled = true
                 clearInterval(timer)
-                onResolved("failed", reference)
+                onResolved("failed", reference, null)
             }
         }, POLL_INTERVAL_MS)
 
@@ -616,8 +619,6 @@ function TransactionResult({
     status?: WalletToBankStatus
     receipt?: WalletToBankReceipt
 }) {
-    const receiptRef = useRef<HTMLDivElement>(null)
-    const [downloading, startDownloadTransition] = useTransition()
 
     if (step !== 3) return null;
 
@@ -657,37 +658,9 @@ function TransactionResult({
         },
     ]
 
-    const reference = receipt.reference
-
-    function downloadReceiptAsync() {
-        startDownloadTransition(async () => {
-            if (!receiptRef.current) return;
-
-            try {
-                const { default: html2canvas } = await import("html2canvas")
-                const canvas = await html2canvas(receiptRef.current, {
-                    backgroundColor: "#ffffff",
-                    scale: 2,
-                })
-
-                const link = document.createElement("a")
-                link.href = canvas.toDataURL("image/png")
-                link.download = `receipt-${reference}.png`
-                link.click()
-            } catch (err) {
-                console.error(err)
-
-                toast.add({
-                    title: "Warning",
-                    description: "Could not download receipt. Please try again.",
-                });
-            }
-        })
-    }
-
     return (
         <div className="space-y-5">
-            <div ref={receiptRef} className="rounded-lg border bg-background p-5 space-y-5">
+            <div className="rounded-lg border bg-background p-5 space-y-5">
                 <div className="flex flex-col items-center text-center gap-2">
                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                         <CheckIcon className="text-primary" />
@@ -714,9 +687,7 @@ function TransactionResult({
                 </div>
             </div>
 
-            <Button type="button" onClick={downloadReceiptAsync} disabled={downloading} className="w-full">
-                {downloading ? <Spinner /> : <><DownloadIcon /> Download Receipt</>}
-            </Button>
+            <DownloadReceiptButton receiptToken={receipt.receiptToken} />
 
             <ReturnToWhatsapp />
         </div>

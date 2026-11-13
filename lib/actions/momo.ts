@@ -7,11 +7,12 @@ import { getCookieValue } from "../network/session"
 import { BankToWalletFormValues, WalletToBankFormValues, bankToWalletSchema, walletToBankSchema } from "../validations/momo"
 
 type BankToWalletResult =
-    | { success: true; reference: string }
+    | { success: true; reference: string; receiptToken: string | null }
     | { success: false; error: string }
 
 type BankToWalletApiResult = {
     reference: string
+    receiptToken: string | null
 }
 
 export async function bankToWalletAsync(values: BankToWalletFormValues): Promise<BankToWalletResult> {
@@ -50,7 +51,7 @@ export async function bankToWalletAsync(values: BankToWalletFormValues): Promise
 
         var apiData = jsonResponse as BankToWalletApiResult
 
-        return { success: true, reference: apiData.reference }
+        return { success: true, reference: apiData.reference, receiptToken: apiData.receiptToken ?? null }
     } catch (err) {
         console.error(err)
 
@@ -150,11 +151,12 @@ export async function initiateWalletToBankAsync(values: WalletToBankFormValues):
 export type WalletToBankStatus = "pending" | "successful" | "failed"
 
 type CheckWalletToBankStatusResult =
-    | { success: true; status: WalletToBankStatus }
+    | { success: true; status: WalletToBankStatus; receiptToken: string | null }
     | { success: false; error: string }
 
 type CheckWalletToBankStatusApiResult = {
     status: WalletToBankStatus
+    receiptToken: string | null
 }
 
 export async function checkWalletToBankStatusAsync(toAccount: string, reference: string): Promise<CheckWalletToBankStatusResult> {
@@ -174,7 +176,7 @@ export async function checkWalletToBankStatusAsync(toAccount: string, reference:
 
         var apiData = jsonResponse as CheckWalletToBankStatusApiResult
 
-        return { success: true, status: apiData.status }
+        return { success: true, status: apiData.status, receiptToken: apiData.receiptToken ?? null }
     } catch (err) {
         console.error(err)
 

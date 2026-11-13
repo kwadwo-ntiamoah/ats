@@ -1,5 +1,6 @@
 "use client"
 
+import { DownloadReceiptButton } from "@/components/download-receipt-button"
 import { FormSkeleton } from "@/components/form-skeleton"
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp"
 import { Button } from "@/components/ui/button"
@@ -17,9 +18,9 @@ import { NETWORK_OPTIONS } from "@/lib/constants/networks"
 import { BankToWalletFormValues, bankToWalletSchema } from "@/lib/validations/momo"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { IconArrowBack } from "@tabler/icons-react"
-import { BanknoteIcon, CheckIcon, CodeIcon, DownloadIcon, LightbulbIcon, LockIcon, UserIcon, WalletIcon } from "lucide-react"
+import { BanknoteIcon, CheckIcon, CodeIcon, LightbulbIcon, LockIcon, UserIcon, WalletIcon } from "lucide-react"
 import Image from "next/image"
-import { useEffect, useRef, useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form"
 
 type BankToWalletEnquiry = {
@@ -35,6 +36,7 @@ type BankToWalletEnquiry = {
 
 type BankToWalletReceipt = BankToWalletEnquiry & {
     reference: string
+    receiptToken: string | null
     completedAt: Date
 }
 
@@ -91,6 +93,7 @@ export default function BankToWalletForm() {
                 setReceipt({
                     ...transferDetails,
                     reference: response.reference,
+                    receiptToken: response.receiptToken,
                     completedAt: new Date(),
                 })
             }
@@ -672,8 +675,6 @@ function TransactionPIN({ step }: { step: number }) {
 }
 
 function TransactionReceipt({ step, receipt }: { step: number; receipt?: BankToWalletReceipt }) {
-    const receiptRef = useRef<HTMLDivElement>(null)
-    const [downloading, startDownloadTransition] = useTransition()
 
     if (step !== 3) return null;
     if (!receipt) return null;
@@ -695,37 +696,9 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: BankToW
         },
     ]
 
-    const reference = receipt.reference
-
-    function downloadReceiptAsync() {
-        startDownloadTransition(async () => {
-            if (!receiptRef.current) return;
-
-            try {
-                const { default: html2canvas } = await import("html2canvas")
-                const canvas = await html2canvas(receiptRef.current, {
-                    backgroundColor: "#ffffff",
-                    scale: 2,
-                })
-
-                const link = document.createElement("a")
-                link.href = canvas.toDataURL("image/png")
-                link.download = `receipt-${reference}.png`
-                link.click()
-            } catch (err) {
-                console.error(err)
-
-                toast.add({
-                    title: "Warning",
-                    description: "Could not download receipt. Please try again.",
-                });
-            }
-        })
-    }
-
     return (
         <div className="space-y-5">
-            <div ref={receiptRef} className="rounded-lg border bg-background p-5 space-y-5">
+            <div className="rounded-lg border bg-background p-5 space-y-5">
                 <div className="flex flex-col items-center text-center gap-2">
                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                         <CheckIcon className="text-primary" />
@@ -752,9 +725,7 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: BankToW
                 </div>
             </div>
 
-            <Button type="button" onClick={downloadReceiptAsync} disabled={downloading} className="w-full">
-                {downloading ? <Spinner /> : <><DownloadIcon /> Download Receipt</>}
-            </Button>
+            <DownloadReceiptButton receiptToken={receipt.receiptToken} />
 
             <ReturnToWhatsapp />
         </div>

@@ -45,11 +45,12 @@ export async function getDataPackagesAsync(network: string, phoneNumber: string)
 }
 
 type BuyDataResult =
-    | { success: true; reference: string }
+    | { success: true; reference: string; receiptToken: string | null }
     | { success: false; error: string }
 
 type BuyDataApiResult = {
     reference: string
+    receiptToken: string | null
 }
 
 export async function buyDataAsync(values: DataFormValues): Promise<BuyDataResult> {
@@ -85,7 +86,7 @@ export async function buyDataAsync(values: DataFormValues): Promise<BuyDataResul
 
         var apiData = jsonResponse as BuyDataApiResult
 
-        return { success: true, reference: apiData.reference }
+        return { success: true, reference: apiData.reference, receiptToken: apiData.receiptToken ?? null }
     } catch (err) {
         console.error(err)
 

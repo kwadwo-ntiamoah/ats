@@ -50,11 +50,12 @@ export async function getTransferDetailsAsync(accountNumber: string): Promise<Ge
 }
 
 type SelfTransferResult =
-    | { success: true; reference: string }
+    | { success: true; reference: string; receiptToken: string | null }
     | { success: false; error: string }
 
 type SelfTransferApiResult = {
     reference: string
+    receiptToken: string | null
 }
 
 export async function selfTransferAsync(values: SelfTransferFormValues): Promise<SelfTransferResult> {
@@ -90,7 +91,7 @@ export async function selfTransferAsync(values: SelfTransferFormValues): Promise
 
         var apiData = jsonResponse as SelfTransferApiResult
 
-        return { success: true, reference: apiData.reference }
+        return { success: true, reference: apiData.reference, receiptToken: apiData.receiptToken ?? null }
     } catch (err) {
         console.error(err)
 
@@ -101,11 +102,12 @@ export async function selfTransferAsync(values: SelfTransferFormValues): Promise
 }
 
 type GcbTransferResult =
-    | { success: true; reference: string }
+    | { success: true; reference: string; receiptToken: string | null }
     | { success: false; error: string }
 
 type GcbTransferApiResult = {
     reference: string
+    receiptToken: string | null
 }
 
 export async function gcbTransferAsync(values: GcbTransferFormValues): Promise<GcbTransferResult> {
@@ -141,7 +143,7 @@ export async function gcbTransferAsync(values: GcbTransferFormValues): Promise<G
 
         var apiData = jsonResponse as GcbTransferApiResult
 
-        return { success: true, reference: apiData.reference }
+        return { success: true, reference: apiData.reference, receiptToken: apiData.receiptToken ?? null }
     } catch (err) {
         console.error(err)
 
@@ -152,11 +154,12 @@ export async function gcbTransferAsync(values: GcbTransferFormValues): Promise<G
 }
 
 type LocalTransferResult =
-    | { success: true; reference: string }
+    | { success: true; reference: string; receiptToken: string | null }
     | { success: false; error: string }
 
 type LocalTransferApiResult = {
     reference: string
+    receiptToken: string | null
 }
 
 export async function localTransferAsync(values: LocalTransferFormValues): Promise<LocalTransferResult> {
@@ -193,7 +196,7 @@ export async function localTransferAsync(values: LocalTransferFormValues): Promi
 
         var apiData = jsonResponse as LocalTransferApiResult
 
-        return { success: true, reference: apiData.reference }
+        return { success: true, reference: apiData.reference, receiptToken: apiData.receiptToken ?? null }
     } catch (err) {
         console.error(err)
 
