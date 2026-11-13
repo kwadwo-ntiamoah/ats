@@ -2,7 +2,7 @@
 
 import { getApiErrorMessage } from "../errors";
 import { sendAsync } from "../network/client";
-import { getCookieValue } from "../network/session";
+import { clearLegacyTokenCookies, getCookieValue } from "../network/session";
 import { logger } from "../logger";
 
 type ValidateTokenResponse = {
@@ -20,6 +20,7 @@ type ValidateTokenResult =
     | { success: false; error: string }
 
 export async function validateTokenAsync(token: string): Promise<ValidateTokenResult> {
+    await clearLegacyTokenCookies();
     var deviceId = await getCookieValue("device_id") ?? ""
     var decodedToken = decodeURIComponent(token);
 

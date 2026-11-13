@@ -13,7 +13,7 @@ export const dataSchema = z.object({
         .length(10, "Phone number must be 10 digits")
         .regex(/^0\d+$/, "Enter a valid phone number"),
     packageId: z.string().min(1, "Select a data package"),
-    pin: z.string().min(1, "PIN is required").length(4)
+    pin: z.string().min(1, "PIN is required").length(4, "PIN must be exactly 4 digits")
 })
 
 export type DataFormValues = z.infer<typeof dataSchema>

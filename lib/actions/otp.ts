@@ -86,7 +86,7 @@ export async function validateOtpAsync(otp: string, token: string): Promise<Vali
             logger.warn({ attemptsLeft: apiData.attemptsLeft }, "Validate OTP: incorrect code");
             const error = apiData.attemptsLeft > 0
                 ? `Incorrect code. ${apiData.attemptsLeft} attempt${apiData.attemptsLeft === 1 ? "" : "s"} left.`
-                : "Incorrect code.";
+                : "Too many wrong codes. Please request a new code.";
             return { success: false, error }
         }
 

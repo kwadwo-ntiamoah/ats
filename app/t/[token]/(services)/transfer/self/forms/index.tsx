@@ -15,7 +15,7 @@ import { getTransferDetailsAsync, selfTransferAsync, TransferEnquiry } from "@/l
 import { SelfTransferFormValues, selfTransferSchema } from "@/lib/validations/transfer"
 import { maskAccountNumber } from "@/lib/utils"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { IconArrowBack } from "@tabler/icons-react"
+import { ArrowLeftIcon } from "lucide-react"
 import { BanknoteIcon, CheckIcon, CodeIcon, LightbulbIcon, LockIcon, WalletIcon } from "lucide-react"
 import { useEffect, useState, useTransition } from "react"
 import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form"
@@ -92,8 +92,8 @@ export default function SelfTransferForm() {
     return (
         <>
             {
-                step > 0 && step < 3 && <Button onClick={goBack} size="xs" className="px-0" variant="ghost">
-                    <IconArrowBack />
+                step > 0 && step < 3 && <Button onClick={goBack} size="xs" className="self-start px-0" variant="ghost">
+                    <ArrowLeftIcon />
                     Go Back
                 </Button>
             }
@@ -113,11 +113,11 @@ export default function SelfTransferForm() {
 
                     {
                         step < 2
-                            ? <Button type="button" onClick={goNext} disabled={detailsPending} className="w-full">
+                            ? <Button key="continue" type="button" onClick={goNext} disabled={detailsPending} className="w-full">
                                 {detailsPending ? <Spinner /> : "Continue"}
                             </Button>
                             : step === 2
-                                ? <Button type="submit" disabled={isPending} className="w-full">
+                                ? <Button key="submit" type="submit" disabled={isPending} className="w-full">
                                     {isPending ? <Spinner /> : "Transfer"}
                                 </Button>
                                 : null
@@ -502,6 +502,11 @@ function TransactionPIN({ step }: { step: number }) {
             control={control}
             render={({ field, fieldState }) => (
                 <Field>
+                    <div className="space-y-1">
+                        <p className="text-base font-semibold">Confirm with your PIN</p>
+                        <p className="text-sm text-muted-foreground">Enter your 4-digit PIN to authorize this transaction. Never share it with anyone.</p>
+                    </div>
+
                     <FieldLabel
                         htmlFor={field.name}
                         className="text-sm"

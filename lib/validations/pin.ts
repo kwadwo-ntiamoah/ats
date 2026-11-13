@@ -46,7 +46,7 @@ export const resetPINSchema = z
 
 export const changePINSchema = z
     .object({
-        oldPin: z.string().min(1, "PIN is required").length(4),
+        oldPin: z.string().min(1, "PIN is required").length(4, "PIN must be exactly 4 digits"),
         newPin: z
             .string()
             .length(4, "PIN must be exactly 4 digits")

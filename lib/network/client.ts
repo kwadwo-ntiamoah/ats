@@ -1,13 +1,12 @@
-import { setSessionCookies, clearSessionCookies, getAccessToken } from "@/lib/network/session"
 import { logger } from "@/lib/logger"
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export type SystemTokenResult =
-    | { ok: true; accessToken: string; refreshToken: string }
+    | { ok: true; accessToken: string; expiresAt: number }
     | { ok: false; rejected: boolean };
 
-/** Requests a system token from the API. Pure: never reads or writes cookies. */
+/** Requests a system token from the API. */
 export async function requestSystemToken(): Promise<SystemTokenResult> {
     const url = `${process.env.API_BASE_URL}/auth/token`;
     const startedAt = Date.now();
@@ -37,20 +36,42 @@ export async function requestSystemToken(): Promise<SystemTokenResult> {
 
     logger.info({ method: "POST", url, status: res.status, ms: Date.now() - startedAt }, "API response: system token");
 
-    const { accessToken, refreshToken } = await res.json()
-    return { ok: true, accessToken, refreshToken };
+    const { accessToken, expiresAt } = await res.json()
+    const parsedExpiry = Date.parse(expiresAt)
+    return {
+        ok: true,
+        accessToken,
+        // If the API ever omits the expiry, assume a short life so we simply re-fetch sooner.
+        expiresAt: Number.isFinite(parsedExpiry) ? parsedExpiry : Date.now() + 10 * 60_000,
+    };
 }
 
-async function getSystemToken(): Promise<string | null> {
-    const result = await requestSystemToken();
+// The system token identifies sidi-web itself to the API, not a customer, so it must never
+// reach a browser. It lives only in this server process's memory and is shared by all requests.
+const TOKEN_REFRESH_MARGIN_MS = 60_000;
+let cachedToken: { value: string; expiresAt: number } | null = null;
+let pendingToken: Promise<string | null> | null = null;
 
-    if (!result.ok) {
-        if (result.rejected) await clearSessionCookies();
-        return null;
+async function getSystemToken(forceRefresh = false): Promise<string | null> {
+    if (!forceRefresh && cachedToken && cachedToken.expiresAt - TOKEN_REFRESH_MARGIN_MS > Date.now()) {
+        return cachedToken.value;
     }
 
-    await setSessionCookies(result.accessToken, result.refreshToken);
-    return result.accessToken
+    // Concurrent requests share one token fetch instead of each asking the API.
+    if (!pendingToken) {
+        pendingToken = (async () => {
+            const result = await requestSystemToken();
+            if (!result.ok) {
+                if (result.rejected) cachedToken = null;
+                return null;
+            }
+
+            cachedToken = { value: result.accessToken, expiresAt: result.expiresAt };
+            return result.accessToken;
+        })().finally(() => { pendingToken = null; });
+    }
+
+    return pendingToken;
 }
 
 /**
@@ -82,19 +103,14 @@ export async function fetchWithToken(path: string, token: string, init: RequestI
 }
 
 export async function sendAsync(path: string, init: RequestInit = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
-    let accessToken = await getAccessToken();
-
-    if (!accessToken) {
-        accessToken = await getSystemToken();
-
-        if (!accessToken) throw new Error("UNAUTHENTICATED");
-    }
+    const accessToken = await getSystemToken();
+    if (!accessToken) throw new Error("UNAUTHENTICATED");
 
     // fetchWithToken logs each attempt, including failures.
     let res = await fetchWithToken(path, accessToken, init, timeoutMs);
 
     if (res.status === 401) {
-        const newToken = await getSystemToken();
+        const newToken = await getSystemToken(true);
         if (!newToken) throw new Error("UNAUTHENTICATED");
 
         res = await fetchWithToken(path, newToken, init, timeoutMs);

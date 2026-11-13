@@ -22,7 +22,7 @@ import { NETWORK_OPTIONS } from "@/lib/constants/networks"
 import { WalletToBankFormValues, walletToBankSchema } from "@/lib/validations/momo"
 import { maskAccountNumber } from "@/lib/utils"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { IconArrowBack } from "@tabler/icons-react"
+import { ArrowLeftIcon } from "lucide-react"
 import { BanknoteIcon, CheckIcon, CodeIcon, LightbulbIcon, ShieldAlertIcon, SmartphoneIcon, WalletIcon } from "lucide-react"
 import Image from "next/image"
 import { useEffect, useState, useTransition } from "react"
@@ -126,8 +126,8 @@ export default function WalletToBankForm() {
     return (
         <>
             {
-                step > 0 && step < 2 && <Button onClick={goBack} size="xs" className="px-0" variant="ghost">
-                    <IconArrowBack />
+                step > 0 && step < 2 && <Button onClick={goBack} size="xs" className="self-start px-0" variant="ghost">
+                    <ArrowLeftIcon />
                     Go Back
                 </Button>
             }

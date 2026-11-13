@@ -13,7 +13,7 @@ import { getMiniStatementAsync, MiniStatement, MiniStatementList } from "@/lib/a
 import { cn } from "@/lib/utils";
 import { GetAccountStatementFormValues, getAccountStatementSchema, GetMiniStatementFormValues } from "@/lib/validations/statement";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { IconArrowBack } from "@tabler/icons-react";
+import { ArrowLeftIcon } from "lucide-react";
 import { ArrowDownLeft, ArrowUpRight, CodeIcon, LightbulbIcon, LockIcon, ReceiptText } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form";
@@ -70,8 +70,8 @@ export default function MiniStatementForm() {
     return (
         <>
             {
-                step === 1 && <Button onClick={goBack} size="xs" className="px-0" variant="ghost">
-                    <IconArrowBack />
+                step === 1 && <Button onClick={goBack} size="xs" className="self-start px-0" variant="ghost">
+                    <ArrowLeftIcon />
                     Go Back
                 </Button>
             }

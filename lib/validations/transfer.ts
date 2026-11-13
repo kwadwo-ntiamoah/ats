@@ -10,7 +10,7 @@ export const selfTransferSchema = z
             .regex(/^\d+(\.\d{1,2})?$/, "Enter a valid amount")
             .refine((value) => Number(value) > 0, "Amount must be greater than 0"),
         narration: z.string().min(1, "Narration is required"),
-        pin: z.string().min(1, "PIN is required").length(4)
+        pin: z.string().min(1, "PIN is required").length(4, "PIN must be exactly 4 digits")
     })
     .refine((data) => data.fromAccount !== data.toAccount, {
         message: "From and To account cannot be the same",
@@ -32,7 +32,7 @@ export const gcbTransferSchema = z.object({
         .regex(/^\d+(\.\d{1,2})?$/, "Enter a valid amount")
         .refine((value) => Number(value) > 0, "Amount must be greater than 0"),
     narration: z.string().min(1, "Narration is required"),
-    pin: z.string().min(1, "PIN is required").length(4)
+    pin: z.string().min(1, "PIN is required").length(4, "PIN must be exactly 4 digits")
 })
 
 export type GcbTransferFormValues = z.infer<typeof gcbTransferSchema>
@@ -51,7 +51,7 @@ export const localTransferSchema = z.object({
         .regex(/^\d+(\.\d{1,2})?$/, "Enter a valid amount")
         .refine((value) => Number(value) > 0, "Amount must be greater than 0"),
     narration: z.string().min(1, "Narration is required"),
-    pin: z.string().min(1, "PIN is required").length(4)
+    pin: z.string().min(1, "PIN is required").length(4, "PIN must be exactly 4 digits")
 })
 
 export type LocalTransferFormValues = z.infer<typeof localTransferSchema>

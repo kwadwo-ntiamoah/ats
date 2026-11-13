@@ -14,7 +14,7 @@ import { Account, getAccountsAsync } from "@/lib/actions/account";
 import { getStatementAsync } from "@/lib/actions/statement";
 import { GetAccountStatementFormValues, getAccountStatementSchema } from "@/lib/validations/statement";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { IconArrowBack } from "@tabler/icons-react";
+import { ArrowLeftIcon } from "lucide-react";
 import { CodeIcon, LightbulbIcon, LockIcon, PlaneIcon, SendIcon, WalletIcon } from "lucide-react";
 import { useRouter } from "next/router"
 import { useEffect, useState, useTransition } from "react";
@@ -76,8 +76,8 @@ export default function CustomStatementForm() {
     return (
         <>
             {
-                step === 1 && <Button onClick={goBack} size="xs" className="px-0" variant="ghost">
-                    <IconArrowBack />
+                step === 1 && <Button onClick={goBack} size="xs" className="self-start px-0" variant="ghost">
+                    <ArrowLeftIcon />
                     Go Back
                 </Button>
             }
@@ -92,8 +92,8 @@ export default function CustomStatementForm() {
 
                         {
                             step == 0
-                                ? <Button type="button" onClick={goNext}>Continue</Button>
-                                : <Button type="submit">
+                                ? <Button key="continue" type="button" onClick={goNext}>Continue</Button>
+                                : <Button key="submit" type="submit">
                                     {isPending ? <Spinner /> : "Get statement"}
                                 </Button>
                         }

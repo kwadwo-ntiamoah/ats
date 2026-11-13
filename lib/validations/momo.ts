@@ -18,7 +18,7 @@ export const bankToWalletSchema = z.object({
         .regex(/^\d+(\.\d{1,2})?$/, "Enter a valid amount")
         .refine((value) => Number(value) > 0, "Amount must be greater than 0"),
     narration: z.string().min(1, "Narration is required"),
-    pin: z.string().min(1, "PIN is required").length(4)
+    pin: z.string().min(1, "PIN is required").length(4, "PIN must be exactly 4 digits")
 })
 
 export type BankToWalletFormValues = z.infer<typeof bankToWalletSchema>
