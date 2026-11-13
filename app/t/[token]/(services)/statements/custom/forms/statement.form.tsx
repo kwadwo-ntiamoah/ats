@@ -25,7 +25,6 @@ export default function CustomStatementForm() {
 
     const [step, setStep] = useState(0)
     const [open, setOpen] = useState(false)
-    const [email, setEmail] = useState("")
 
     const [isPending, startTransition] = useTransition()
 
@@ -68,7 +67,6 @@ export default function CustomStatementForm() {
             }
 
             setOpen(true)
-            setEmail(response.hashedEmail)
             form.reset()
         })
     }
@@ -114,7 +112,7 @@ export default function CustomStatementForm() {
 
                         <div className="w-full border-t mt-5 pt-5">
                             <p className="text-xs tracking-wide text-muted-foreground mb-1.5">
-                                Your statement has been generated successfully and sent to your mail {email}
+                                Your statement is ready and has been sent to you on WhatsApp as a PDF.
                             </p>
 
                         </div>

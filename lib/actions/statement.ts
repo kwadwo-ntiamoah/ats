@@ -6,10 +6,8 @@ import { getCookieValue } from "../network/session";
 import { GetAccountStatementFormValues, getAccountStatementSchema, GetMiniStatementFormValues } from "../validations/statement";
 
 type GetStatementResults =
-    | { success: true, hashedEmail: string }
+    | { success: true }
     | { success: false; error: string }
-
-type GetStatementApiResult = { hashedEmail: string }
 
 export async function getStatementAsync(values: GetAccountStatementFormValues): Promise<GetStatementResults> {
 
@@ -40,11 +38,9 @@ export async function getStatementAsync(values: GetAccountStatementFormValues): 
         })
 
         const jsonResponse = await res.json()
-        if (!res.ok) { return { success: false, error: getApiErrorMessage(jsonResponse, "Verification failed") } }
+        if (!res.ok) { return { success: false, error: getApiErrorMessage(jsonResponse, "We couldn't get your statement. Please try again.") } }
 
-        var apiData = jsonResponse as GetStatementApiResult
-
-        return { success: true, hashedEmail: apiData.hashedEmail }
+        return { success: true }
     } catch (err) {
         console.error(err)
 
