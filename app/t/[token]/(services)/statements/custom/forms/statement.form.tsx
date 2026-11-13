@@ -16,13 +16,10 @@ import { GetAccountStatementFormValues, getAccountStatementSchema } from "@/lib/
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeftIcon } from "lucide-react";
 import { CodeIcon, LightbulbIcon, LockIcon, PlaneIcon, SendIcon, WalletIcon } from "lucide-react";
-import { useRouter } from "next/router"
 import { useEffect, useState, useTransition } from "react";
 import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form";
 
 export default function CustomStatementForm() {
-    const router = useRouter();
-
     const [step, setStep] = useState(0)
     const [open, setOpen] = useState(false)
 
@@ -81,21 +78,17 @@ export default function CustomStatementForm() {
             }
             
             <FormProvider {...form}>
-                <form onSubmit={form.handleSubmit(onsubmitAsync)}>
+                <form onSubmit={form.handleSubmit(onsubmitAsync)} className="space-y-5">
                     <StatementDetails step={step} />
                     <Pin step={step} />
 
-                    <div className="flex items-center justify-between">
-                        <Button type="button" onClick={goNext} disabled={step === 0}>Continue</Button>
-
-                        {
-                            step == 0
-                                ? <Button key="continue" type="button" onClick={goNext}>Continue</Button>
-                                : <Button key="submit" type="submit">
-                                    {isPending ? <Spinner /> : "Get statement"}
-                                </Button>
-                        }
-                    </div>
+                    {
+                        step === 0
+                            ? <Button key="continue" type="button" onClick={goNext} className="w-full">Continue</Button>
+                            : <Button key="submit" type="submit" disabled={isPending} className="w-full">
+                                {isPending ? <Spinner /> : "Get Statement"}
+                            </Button>
+                    }
                 </form>
             </FormProvider>
 

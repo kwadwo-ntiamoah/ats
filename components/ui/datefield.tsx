@@ -1,11 +1,10 @@
 "use client";
 
 import { Controller, Control, FieldValues, Path } from "react-hook-form";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
     Popover,
@@ -13,6 +12,13 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+
+function toDate(value: unknown): Date | undefined {
+    if (!value) return undefined;
+    if (value instanceof Date) return value;
+    const parsed = parseISO(String(value));
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
 
 interface DateFieldProps<T extends FieldValues> {
     control: Control<T>;
@@ -37,26 +43,32 @@ export function DateField<T extends FieldValues>({
                 <Field data-invalid={!!fieldState.error}>
                     <FieldLabel htmlFor={name}>{label}</FieldLabel>
                     <Popover>
-                        <PopoverTrigger>
-                            <Button
-                                id={name}
-                                type="button"
-                                variant="outline"
-                                aria-invalid={!!fieldState.error}
-                                className={cn(
-                                    "justify-start text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value ? format(field.value, "yyyy-MM-dd") : placeholder}
-                            </Button>
+                        {/* The trigger is the button itself: a <Button> inside the trigger's own
+                            <button> is invalid HTML and breaks hydration, crashing the page. */}
+                        <PopoverTrigger
+                            id={name}
+                            aria-invalid={!!fieldState.error}
+                            className={cn(
+                                // Same look as the other inputs (account select, amount, PIN):
+                                // full width, 44px tall, small radius, icon on the left.
+                                "flex h-11 w-full items-center gap-2 rounded-md border border-input bg-transparent px-2 text-left text-sm shadow-xs outline-none transition-[color,box-shadow]",
+                                "focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/50",
+                                "aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20",
+                                !field.value && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="size-4 text-black/40" />
+                            {field.value ? format(toDate(field.value)!, "dd MMM yyyy") : placeholder}
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
+                        {/* As wide as the date field it opens from. */}
+                        <PopoverContent className="w-(--anchor-width) p-0" align="start">
                             <Calendar
+                                className="w-full"
+                                classNames={{ root: "w-full" }}
                                 mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
+                                selected={toDate(field.value)}
+                                // Stored as "yyyy-MM-dd", which is what the form schema and API expect.
+                                onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
                                 disabled={disabled}
                                 autoFocus
                             />

@@ -77,17 +77,15 @@ export default function MiniStatementForm() {
             }
 
             <FormProvider {...form}>
-                <form onSubmit={form.handleSubmit(onsubmitAsync)}>
+                <form onSubmit={form.handleSubmit(onsubmitAsync)} className="space-y-5">
                     <StatementDetails step={step} />
                     <StatementEntries step={step} />
 
-                    <div className="flex items-center justify-between">
-                        <Button type="button" onClick={goNext} disabled={step === 0}>Continue</Button>
-
-                        <Button type="submit">
-                            {isPending ? <Spinner /> : "Get statement"}
+                    {
+                        step === 0 && <Button type="submit" disabled={isPending} className="w-full">
+                            {isPending ? <Spinner /> : "Get Statement"}
                         </Button>
-                    </div>
+                    }
                 </form>
             </FormProvider>
         </>
