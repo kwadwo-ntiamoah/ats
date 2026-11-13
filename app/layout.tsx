@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { SiteFooter } from "@/components/footer";
 import { PlainNavbar } from "@/components/navbar";
 import { Toaster } from "@/components/ui/toast";
+import { LoaderOverlay } from "@/components/page-loader";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
@@ -40,6 +41,7 @@ export default function RootLayout({
         {children}
         {/* <SiteFooter /> */}
         <Toaster />
+        <LoaderOverlay />
       </body>
     </html>
   );

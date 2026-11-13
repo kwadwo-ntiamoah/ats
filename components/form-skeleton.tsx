@@ -1,6 +1,10 @@
+"use client"
+
 import { Skeleton } from "@/components/ui/skeleton"
+import { useLoaderOverlay } from "@/components/page-loader"
 
 export function FormSkeleton() {
+  useLoaderOverlay()
   return (
     <div className="w-full max-w-md space-y-6">
       {/* Title */}

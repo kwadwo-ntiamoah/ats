@@ -8,6 +8,7 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
+import { GcbLoader } from "@/components/page-loader"
 import { toast } from "@/components/ui/toast"
 import { Account, getAccountBalanceAsync, getAccountsAsync } from "@/lib/actions/account"
 import {
@@ -590,7 +591,8 @@ function AuthorizationGuide({
 
     return (
         <div className="space-y-5 text-center">
-            <Spinner className="mx-auto size-8" />
+            {/* Inline, not the overlay: the steps below must stay readable while we wait. */}
+            <GcbLoader className="mx-auto" />
 
             <div>
                 <p className="text-base font-medium">Waiting for authorization</p>

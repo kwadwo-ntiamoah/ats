@@ -9,7 +9,7 @@ import { useParams } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { useRouter } from "next/navigation";
 import { FormSkeleton } from "@/components/form-skeleton";
-import { Spinner } from "@/components/ui/spinner";
+import { PageLoader } from "@/components/page-loader";
 import { PlainNavbar } from "@/components/navbar";
 
 export default function TransactionPage() {
@@ -84,14 +84,7 @@ export default function TransactionPage() {
     }, [token, revalidateLink]);
 
     if (isPending || status === "loading") {
-        return (
-            <>
-                {/* <PlainNavbar /> */}
-                <div className="flex flex-col justify-center items-center py-24">
-                    <Spinner className="h-10 w-10 text-gray-500" />
-                </div>
-            </>
-        )
+        return <PageLoader />
     }
 
     if (status === "invalid") {
