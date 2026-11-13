@@ -16,12 +16,21 @@ import { bankToWalletAsync } from "@/lib/actions/momo"
 import { getTransferDetailsAsync } from "@/lib/actions/transfer"
 import { NETWORK_OPTIONS } from "@/lib/constants/networks"
 import { BankToWalletFormValues, bankToWalletSchema } from "@/lib/validations/momo"
+import { hasRecipientLookup, isRecipientResolved, recipientDisplayText, useRecipientLookup } from "@/lib/hooks/useRecipientLookup"
+import { maskAccountNumber } from "@/lib/utils"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { IconArrowBack } from "@tabler/icons-react"
 import { BanknoteIcon, CheckIcon, CodeIcon, LightbulbIcon, LockIcon, UserIcon, WalletIcon } from "lucide-react"
 import Image from "next/image"
 import { useEffect, useState, useTransition } from "react"
-import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form"
+import { Controller, FormProvider, useForm, useFormContext, useWatch } from "react-hook-form"
+
+type RecipientLookupState = ReturnType<typeof useRecipientLookup>
+
+// The name enquiry depends on both the network and the wallet number.
+function recipientKey(network?: string, toAccount?: string) {
+    return network && toAccount ? `${network}:${toAccount}` : ""
+}
 
 type BankToWalletEnquiry = {
     fromAccount: string
@@ -54,17 +63,30 @@ export default function BankToWalletForm() {
         mode: "onTouched"
     })
 
+    const recipientLookup = useRecipientLookup()
+    const [network, toAccount] = useWatch({ control: form.control, name: ["network", "toAccount"] })
+    const recipientResolved = isRecipientResolved(recipientLookup.recipient, recipientKey(network, toAccount))
+
     async function goNext() {
         if (step === 0) {
             const valid = await form.trigger(["fromAccount", "network", "toAccount", "amount", "narration"], {
                 shouldFocus: true,
             });
 
-            if (!valid) return;
+            if (!valid || !recipientResolved) return;
+
+            // Drop any confirmation loaded for an earlier recipient before showing the new one.
+            setTransferDetails(undefined)
         }
+
+        if (step === 1 && !transferDetails) return;
 
         setStep((s) => s + 1)
     }
+
+    const continueDisabled = detailsPending
+        || (step === 0 && !recipientResolved)
+        || (step === 1 && !transferDetails)
 
     function goBack() {
         setStep((s) => Math.max(0, s - 1));
@@ -114,20 +136,21 @@ export default function BankToWalletForm() {
 
             <FormProvider {...form}>
                 <form onSubmit={form.handleSubmit(onsubmitAsync)} className="space-y-5">
-                    <TransferDetails step={step} />
+                    <TransferDetails step={step} recipientLookup={recipientLookup} />
                     <TransactionConfirmation
                         step={step}
                         details={transferDetails}
                         pending={detailsPending}
                         startTransition={startDetailsTransition}
                         onLoaded={setTransferDetails}
+                        onFailed={() => setStep(0)}
                     />
                     <TransactionPIN step={step} />
                     <TransactionReceipt step={step} receipt={receipt} />
 
                     {
                         step < 2
-                            ? <Button type="button" onClick={goNext} disabled={detailsPending} className="w-full">
+                            ? <Button type="button" onClick={goNext} disabled={continueDisabled} className="w-full">
                                 {detailsPending ? <Spinner /> : "Continue"}
                             </Button>
                             : step === 2
@@ -142,10 +165,11 @@ export default function BankToWalletForm() {
     )
 }
 
-function TransferDetails({ step }: { step: number }) {
+function TransferDetails({ step, recipientLookup }: { step: number; recipientLookup: RecipientLookupState }) {
     if (step !== 0) return null;
 
     const { control, watch } = useFormContext<BankToWalletFormValues>()
+    const { recipient, lookup, reset } = recipientLookup
 
     const [accounts, setAccounts] = useState<Account[]>([])
     const [accountsPending, startAccountsTransition] = useTransition()
@@ -157,8 +181,7 @@ function TransferDetails({ step }: { step: number }) {
     const [balance, setBalance] = useState<number>()
     const [balancePending, startBalanceTransition] = useTransition()
 
-    const [recipientName, setRecipientName] = useState<string>()
-    const [recipientPending, startRecipientTransition] = useTransition()
+    const currentRecipientKey = recipientKey(network, toAccount)
 
     useEffect(() => {
         startAccountsTransition(async () => {
@@ -195,28 +218,25 @@ function TransferDetails({ step }: { step: number }) {
         })
     }, [fromAccount])
 
+    // Picking another network re-runs the enquiry for the number already entered, so the user isn't
+    // left with a disabled Continue button until they happen to touch the wallet field again.
     useEffect(() => {
-        setRecipientName(undefined)
+        lookupRecipientAsync()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [network])
 
     function lookupRecipientAsync() {
         const bankCode = NETWORK_OPTIONS.find((n) => n.value === network)?.bankCode
+        const key = recipientKey(network, toAccount)
 
-        if (!bankCode || !toAccount) {
-            setRecipientName(undefined)
+        if (!bankCode || !key) {
+            reset()
             return;
         }
 
-        startRecipientTransition(async () => {
-            var response = await getGipAccountDetailsAsync(bankCode, toAccount);
+        if (hasRecipientLookup(recipient, key)) return;
 
-            if (!response.success) {
-                setRecipientName(undefined)
-                return;
-            }
-
-            setRecipientName(response.accountName)
-        })
+        lookup(key, () => getGipAccountDetailsAsync(bankCode, toAccount))
     }
 
     if (accountsPending) return <FormSkeleton />
@@ -406,7 +426,7 @@ function TransferDetails({ step }: { step: number }) {
                                     )
 
                                     field.onChange(value)
-                                    setRecipientName(undefined)
+                                    reset()
                                 }}
                                 onBlur={(e) => {
                                     field.onBlur()
@@ -427,7 +447,7 @@ function TransferDetails({ step }: { step: number }) {
                 )}
             />
 
-            {toAccount && network && (
+            {currentRecipientKey && recipient.key === currentRecipientKey && (
                 <Field>
                     <FieldLabel
                         htmlFor="recipient"
@@ -445,8 +465,9 @@ function TransferDetails({ step }: { step: number }) {
                             id="recipient"
                             disabled
                             readOnly
-                            value={recipientPending ? "Looking up account..." : recipientName ?? "Account not found"}
-                            className="text-sm! bg-transparent disabled:opacity-100"
+                            aria-invalid={recipient.status === "not_found"}
+                            value={recipientDisplayText(recipient)}
+                            className={`text-sm! bg-transparent disabled:opacity-100 ${recipient.status === "not_found" ? "text-destructive" : ""}`}
                         />
                     </InputGroup>
                 </Field>
@@ -532,12 +553,14 @@ function TransactionConfirmation({
     pending,
     startTransition,
     onLoaded,
+    onFailed,
 }: {
     step: number
     details?: BankToWalletEnquiry
     pending: boolean
     startTransition: (callback: () => Promise<void> | void) => void
     onLoaded: (details: BankToWalletEnquiry) => void
+    onFailed: () => void
 }) {
     const { getValues } = useFormContext<BankToWalletFormValues>()
 
@@ -561,6 +584,7 @@ function TransactionConfirmation({
                     description: fromRes.error,
                 });
 
+                onFailed()
                 return;
             }
 
@@ -570,6 +594,7 @@ function TransactionConfirmation({
                     description: toRes.error,
                 });
 
+                onFailed()
                 return;
             }
 
@@ -683,9 +708,9 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: BankToW
 
     const rows: { label: string; value: string }[] = [
         { label: "Reference", value: receipt.reference },
-        { label: "From", value: `${receipt.fromAccountName} (${receipt.fromAccount})` },
+        { label: "From", value: `${receipt.fromAccountName} (${maskAccountNumber(receipt.fromAccount)})` },
         { label: "Network", value: receipt.networkLabel },
-        { label: "To", value: `${receipt.toAccountName} (${receipt.toAccount})` },
+        { label: "To", value: `${receipt.toAccountName} (${maskAccountNumber(receipt.toAccount)})` },
         { label: "Narration", value: receipt.narration },
         {
             label: "Date",

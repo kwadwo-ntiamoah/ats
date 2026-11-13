@@ -13,11 +13,15 @@ import { toast } from "@/components/ui/toast"
 import { Account, getAccountBalanceAsync, getAccountsAsync } from "@/lib/actions/account"
 import { gcbTransferAsync, getTransferDetailsAsync, TransferEnquiry } from "@/lib/actions/transfer"
 import { GcbTransferFormValues, gcbTransferSchema } from "@/lib/validations/transfer"
+import { hasRecipientLookup, isRecipientResolved, recipientDisplayText, useRecipientLookup } from "@/lib/hooks/useRecipientLookup"
+import { maskAccountNumber } from "@/lib/utils"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { IconArrowBack } from "@tabler/icons-react"
 import { BanknoteIcon, CheckIcon, CodeIcon, LightbulbIcon, LockIcon, UserIcon, WalletIcon } from "lucide-react"
 import { useEffect, useState, useTransition } from "react"
-import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form"
+import { Controller, FormProvider, useForm, useFormContext, useWatch } from "react-hook-form"
+
+type RecipientLookupState = ReturnType<typeof useRecipientLookup>
 
 type TransferReceipt = TransferEnquiry & {
     reference: string
@@ -39,17 +43,30 @@ export default function GcbTransferForm() {
         mode: "onTouched"
     })
 
+    const recipientLookup = useRecipientLookup()
+    const toAccount = useWatch({ control: form.control, name: "toAccount" })
+    const recipientResolved = isRecipientResolved(recipientLookup.recipient, toAccount)
+
     async function goNext() {
         if (step === 0) {
             const valid = await form.trigger(["fromAccount", "toAccount", "amount", "narration"], {
                 shouldFocus: true,
             });
 
-            if (!valid) return;
+            if (!valid || !recipientResolved) return;
+
+            // Drop any confirmation loaded for an earlier recipient before showing the new one.
+            setTransferDetails(undefined)
         }
+
+        if (step === 1 && !transferDetails) return;
 
         setStep((s) => s + 1)
     }
+
+    const continueDisabled = detailsPending
+        || (step === 0 && !recipientResolved)
+        || (step === 1 && !transferDetails)
 
     function goBack() {
         setStep((s) => Math.max(0, s - 1));
@@ -99,20 +116,21 @@ export default function GcbTransferForm() {
 
             <FormProvider {...form}>
                 <form onSubmit={form.handleSubmit(onsubmitAsync)} className="space-y-5">
-                    <TransferDetails step={step} />
+                    <TransferDetails step={step} recipientLookup={recipientLookup} />
                     <TransactionConfirmation
                         step={step}
                         details={transferDetails}
                         pending={detailsPending}
                         startTransition={startDetailsTransition}
                         onLoaded={setTransferDetails}
+                        onFailed={() => setStep(0)}
                     />
                     <TransactionPIN step={step} />
                     <TransactionReceipt step={step} receipt={receipt} />
 
                     {
                         step < 2
-                            ? <Button type="button" onClick={goNext} disabled={detailsPending} className="w-full">
+                            ? <Button type="button" onClick={goNext} disabled={continueDisabled} className="w-full">
                                 {detailsPending ? <Spinner /> : "Continue"}
                             </Button>
                             : step === 2
@@ -127,10 +145,11 @@ export default function GcbTransferForm() {
     )
 }
 
-function TransferDetails({ step }: { step: number }) {
+function TransferDetails({ step, recipientLookup }: { step: number; recipientLookup: RecipientLookupState }) {
     if (step !== 0) return null;
 
     const { control, watch } = useFormContext<GcbTransferFormValues>()
+    const { recipient, lookup, reset } = recipientLookup
 
     const [accounts, setAccounts] = useState<Account[]>([])
     const [accountsPending, startAccountsTransition] = useTransition()
@@ -140,9 +159,6 @@ function TransferDetails({ step }: { step: number }) {
 
     const [balance, setBalance] = useState<number>()
     const [balancePending, startBalanceTransition] = useTransition()
-
-    const [recipientName, setRecipientName] = useState<string>()
-    const [recipientPending, startRecipientTransition] = useTransition()
 
     useEffect(() => {
         startAccountsTransition(async () => {
@@ -181,20 +197,14 @@ function TransferDetails({ step }: { step: number }) {
 
     useEffect(() => {
         if (toAccount?.length !== 13) {
-            setRecipientName(undefined)
+            reset()
             return;
         }
 
-        startRecipientTransition(async () => {
-            var response = await getTransferDetailsAsync(toAccount);
+        if (hasRecipientLookup(recipient, toAccount)) return;
 
-            if (!response.success) {
-                setRecipientName(undefined)
-                return;
-            }
-
-            setRecipientName(response.accountName)
-        })
+        lookup(toAccount, () => getTransferDetailsAsync(toAccount))
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [toAccount])
 
     if (accountsPending) return <FormSkeleton />
@@ -337,7 +347,7 @@ function TransferDetails({ step }: { step: number }) {
                 )}
             />
 
-            {toAccount?.length === 13 && (
+            {toAccount?.length === 13 && recipient.key === toAccount && (
                 <Field>
                     <FieldLabel
                         htmlFor="recipient"
@@ -355,8 +365,9 @@ function TransferDetails({ step }: { step: number }) {
                             id="recipient"
                             disabled
                             readOnly
-                            value={recipientPending ? "Looking up account..." : recipientName ?? "Account not found"}
-                            className="text-sm! bg-transparent disabled:opacity-100"
+                            aria-invalid={recipient.status === "not_found"}
+                            value={recipientDisplayText(recipient)}
+                            className={`text-sm! bg-transparent disabled:opacity-100 ${recipient.status === "not_found" ? "text-destructive" : ""}`}
                         />
                     </InputGroup>
                 </Field>
@@ -442,12 +453,14 @@ function TransactionConfirmation({
     pending,
     startTransition,
     onLoaded,
+    onFailed,
 }: {
     step: number
     details?: TransferEnquiry
     pending: boolean
     startTransition: (callback: () => Promise<void> | void) => void
     onLoaded: (details: TransferEnquiry) => void
+    onFailed: () => void
 }) {
     const { getValues } = useFormContext<GcbTransferFormValues>()
 
@@ -468,6 +481,7 @@ function TransactionConfirmation({
                     description: fromRes.error,
                 });
 
+                onFailed()
                 return;
             }
 
@@ -477,6 +491,7 @@ function TransactionConfirmation({
                     description: toRes.error,
                 });
 
+                onFailed()
                 return;
             }
 
@@ -585,8 +600,8 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: Transfe
 
     const rows: { label: string; value: string }[] = [
         { label: "Reference", value: receipt.reference },
-        { label: "From", value: `${receipt.fromAccountName} (${receipt.fromAccount})` },
-        { label: "To", value: `${receipt.toAccountName} (${receipt.toAccount})` },
+        { label: "From", value: `${receipt.fromAccountName} (${maskAccountNumber(receipt.fromAccount)})` },
+        { label: "To", value: `${receipt.toAccountName} (${maskAccountNumber(receipt.toAccount)})` },
         { label: "Narration", value: receipt.narration },
         {
             label: "Date",

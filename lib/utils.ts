@@ -5,6 +5,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Hides the middle of an account or wallet number for receipts, keeping the
+ * last 4 digits (and the first 3 on numbers of 10+ digits) so the customer
+ * can still tell which account it was: 1234567890123 -> 123******0123.
+ * Must match MaskAccount in the API's ReceiptPdfService.
+ */
+export function maskAccountNumber(value?: string | null): string {
+  const account = (value ?? "").trim()
+  if (account.length <= 4) return account
+
+  const head = account.length >= 10 ? 3 : 0
+  const tail = 4
+
+  return account.slice(0, head) + "*".repeat(account.length - head - tail) + account.slice(-tail)
+}
+
 export const blobToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

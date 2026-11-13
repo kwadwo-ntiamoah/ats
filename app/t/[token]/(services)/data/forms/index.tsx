@@ -14,6 +14,7 @@ import { DataPackage, buyDataAsync, getDataPackagesAsync } from "@/lib/actions/d
 import { getTransferDetailsAsync } from "@/lib/actions/transfer"
 import { NETWORK_OPTIONS } from "@/lib/constants/networks"
 import { DataFormValues, dataSchema } from "@/lib/validations/data"
+import { maskAccountNumber } from "@/lib/utils"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { IconArrowBack } from "@tabler/icons-react"
 import { CheckIcon, CodeIcon, LockIcon, PackageIcon, PhoneIcon, WalletIcon } from "lucide-react"
@@ -667,7 +668,7 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: DataRec
 
     const rows: { label: string; value: string }[] = [
         { label: "Reference", value: receipt.reference },
-        { label: "From", value: `${receipt.fromAccountName} (${receipt.fromAccount})` },
+        { label: "From", value: `${receipt.fromAccountName} (${maskAccountNumber(receipt.fromAccount)})` },
         { label: "Network", value: receipt.networkLabel },
         { label: "Phone Number", value: receipt.phoneNumber },
         { label: "Package", value: receipt.packageLabel },

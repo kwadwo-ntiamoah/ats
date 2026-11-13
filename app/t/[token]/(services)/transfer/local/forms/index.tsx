@@ -15,13 +15,22 @@ import { Account, getAccountBalanceAsync, getAccountsAsync } from "@/lib/actions
 import { Bank, getBanksAsync, getGipAccountDetailsAsync } from "@/lib/actions/bank"
 import { getTransferDetailsAsync, localTransferAsync } from "@/lib/actions/transfer"
 import { LocalTransferFormValues, localTransferSchema } from "@/lib/validations/transfer"
+import { hasRecipientLookup, isRecipientResolved, recipientDisplayText, useRecipientLookup } from "@/lib/hooks/useRecipientLookup"
+import { maskAccountNumber } from "@/lib/utils"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { IconArrowBack } from "@tabler/icons-react"
 import { BanknoteIcon, CheckIcon, CodeIcon, LightbulbIcon, LockIcon, UserIcon, WalletIcon } from "lucide-react"
 import { useEffect, useState, useTransition } from "react"
-import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form"
+import { Controller, FormProvider, useForm, useFormContext, useWatch } from "react-hook-form"
 
 type BankOption = { value: string; label: string }
+
+type RecipientLookupState = ReturnType<typeof useRecipientLookup>
+
+// The name enquiry depends on both the bank and the account number.
+function recipientKey(bankCode?: string, toAccount?: string) {
+    return bankCode && toAccount ? `${bankCode}:${toAccount}` : ""
+}
 
 type LocalTransferEnquiry = {
     fromAccount: string
@@ -54,17 +63,30 @@ export default function LocalTransferForm() {
         mode: "onTouched"
     })
 
+    const recipientLookup = useRecipientLookup()
+    const [bankCode, toAccount] = useWatch({ control: form.control, name: ["bankCode", "toAccount"] })
+    const recipientResolved = isRecipientResolved(recipientLookup.recipient, recipientKey(bankCode, toAccount))
+
     async function goNext() {
         if (step === 0) {
             const valid = await form.trigger(["fromAccount", "bankCode", "toAccount", "amount", "narration"], {
                 shouldFocus: true,
             });
 
-            if (!valid) return;
+            if (!valid || !recipientResolved) return;
+
+            // Drop any confirmation loaded for an earlier recipient before showing the new one.
+            setTransferDetails(undefined)
         }
+
+        if (step === 1 && !transferDetails) return;
 
         setStep((s) => s + 1)
     }
+
+    const continueDisabled = detailsPending
+        || (step === 0 && !recipientResolved)
+        || (step === 1 && !transferDetails)
 
     function goBack() {
         setStep((s) => Math.max(0, s - 1));
@@ -114,20 +136,21 @@ export default function LocalTransferForm() {
 
             <FormProvider {...form}>
                 <form onSubmit={form.handleSubmit(onsubmitAsync)} className="space-y-5">
-                    <TransferDetails step={step} />
+                    <TransferDetails step={step} recipientLookup={recipientLookup} />
                     <TransactionConfirmation
                         step={step}
                         details={transferDetails}
                         pending={detailsPending}
                         startTransition={startDetailsTransition}
                         onLoaded={setTransferDetails}
+                        onFailed={() => setStep(0)}
                     />
                     <TransactionPIN step={step} />
                     <TransactionReceipt step={step} receipt={receipt} />
 
                     {
                         step < 2
-                            ? <Button type="button" onClick={goNext} disabled={detailsPending} className="w-full">
+                            ? <Button type="button" onClick={goNext} disabled={continueDisabled} className="w-full">
                                 {detailsPending ? <Spinner /> : "Continue"}
                             </Button>
                             : step === 2
@@ -142,10 +165,11 @@ export default function LocalTransferForm() {
     )
 }
 
-function TransferDetails({ step }: { step: number }) {
+function TransferDetails({ step, recipientLookup }: { step: number; recipientLookup: RecipientLookupState }) {
     if (step !== 0) return null;
 
     const { control, watch } = useFormContext<LocalTransferFormValues>()
+    const { recipient, lookup, reset } = recipientLookup
 
     const [accounts, setAccounts] = useState<Account[]>([])
     const [accountsPending, startAccountsTransition] = useTransition()
@@ -160,8 +184,7 @@ function TransferDetails({ step }: { step: number }) {
     const [balance, setBalance] = useState<number>()
     const [balancePending, startBalanceTransition] = useTransition()
 
-    const [recipientName, setRecipientName] = useState<string>()
-    const [recipientPending, startRecipientTransition] = useTransition()
+    const currentRecipientKey = recipientKey(bankCode, toAccount)
 
     useEffect(() => {
         startAccountsTransition(async () => {
@@ -215,26 +238,24 @@ function TransferDetails({ step }: { step: number }) {
         })
     }, [fromAccount])
 
+    // Picking another bank re-runs the enquiry for the number already entered, so the user isn't
+    // left with a disabled Continue button until they happen to touch the account field again.
     useEffect(() => {
-        setRecipientName(undefined)
+        lookupRecipientAsync()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [bankCode])
 
     function lookupRecipientAsync() {
-        if (!bankCode || !toAccount) {
-            setRecipientName(undefined)
+        const key = recipientKey(bankCode, toAccount)
+
+        if (!key) {
+            reset()
             return;
         }
 
-        startRecipientTransition(async () => {
-            var response = await getGipAccountDetailsAsync(bankCode, toAccount);
+        if (hasRecipientLookup(recipient, key)) return;
 
-            if (!response.success) {
-                setRecipientName(undefined)
-                return;
-            }
-
-            setRecipientName(response.accountName)
-        })
+        lookup(key, () => getGipAccountDetailsAsync(bankCode, toAccount))
     }
 
     if (accountsPending || banksPending) return <FormSkeleton />
@@ -416,7 +437,7 @@ function TransferDetails({ step }: { step: number }) {
                                     )
 
                                     field.onChange(value)
-                                    setRecipientName(undefined)
+                                    reset()
                                 }}
                                 onBlur={(e) => {
                                     field.onBlur()
@@ -437,7 +458,7 @@ function TransferDetails({ step }: { step: number }) {
                 )}
             />
 
-            {toAccount && bankCode && (
+            {currentRecipientKey && recipient.key === currentRecipientKey && (
                 <Field>
                     <FieldLabel
                         htmlFor="recipient"
@@ -455,8 +476,9 @@ function TransferDetails({ step }: { step: number }) {
                             id="recipient"
                             disabled
                             readOnly
-                            value={recipientPending ? "Looking up account..." : recipientName ?? "Account not found"}
-                            className="text-sm! bg-transparent disabled:opacity-100"
+                            aria-invalid={recipient.status === "not_found"}
+                            value={recipientDisplayText(recipient)}
+                            className={`text-sm! bg-transparent disabled:opacity-100 ${recipient.status === "not_found" ? "text-destructive" : ""}`}
                         />
                     </InputGroup>
                 </Field>
@@ -542,12 +564,14 @@ function TransactionConfirmation({
     pending,
     startTransition,
     onLoaded,
+    onFailed,
 }: {
     step: number
     details?: LocalTransferEnquiry
     pending: boolean
     startTransition: (callback: () => Promise<void> | void) => void
     onLoaded: (details: LocalTransferEnquiry) => void
+    onFailed: () => void
 }) {
     const { getValues } = useFormContext<LocalTransferFormValues>()
 
@@ -569,6 +593,7 @@ function TransactionConfirmation({
                     description: fromRes.error,
                 });
 
+                onFailed()
                 return;
             }
 
@@ -578,6 +603,7 @@ function TransactionConfirmation({
                     description: toRes.error,
                 });
 
+                onFailed()
                 return;
             }
 
@@ -587,6 +613,7 @@ function TransactionConfirmation({
                     description: banksRes.error,
                 });
 
+                onFailed()
                 return;
             }
 
@@ -700,9 +727,9 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: LocalTr
 
     const rows: { label: string; value: string }[] = [
         { label: "Reference", value: receipt.reference },
-        { label: "From", value: `${receipt.fromAccountName} (${receipt.fromAccount})` },
+        { label: "From", value: `${receipt.fromAccountName} (${maskAccountNumber(receipt.fromAccount)})` },
         { label: "Bank", value: receipt.bankName },
-        { label: "To", value: `${receipt.toAccountName} (${receipt.toAccount})` },
+        { label: "To", value: `${receipt.toAccountName} (${maskAccountNumber(receipt.toAccount)})` },
         { label: "Narration", value: receipt.narration },
         {
             label: "Date",

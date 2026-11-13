@@ -14,6 +14,7 @@ import { buyAirtimeAsync } from "@/lib/actions/airtime"
 import { getTransferDetailsAsync } from "@/lib/actions/transfer"
 import { NETWORK_OPTIONS } from "@/lib/constants/networks"
 import { AirtimeFormValues, airtimeSchema } from "@/lib/validations/airtime"
+import { maskAccountNumber } from "@/lib/utils"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { IconArrowBack } from "@tabler/icons-react"
 import { BanknoteIcon, CheckIcon, CodeIcon, LockIcon, PhoneIcon, WalletIcon } from "lucide-react"
@@ -569,7 +570,7 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: Airtime
 
     const rows: { label: string; value: string }[] = [
         { label: "Reference", value: receipt.reference },
-        { label: "From", value: `${receipt.fromAccountName} (${receipt.fromAccount})` },
+        { label: "From", value: `${receipt.fromAccountName} (${maskAccountNumber(receipt.fromAccount)})` },
         { label: "Network", value: receipt.networkLabel },
         { label: "Phone Number", value: receipt.phoneNumber },
         {

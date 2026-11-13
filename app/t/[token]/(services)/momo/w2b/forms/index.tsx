@@ -19,6 +19,7 @@ import {
 import { getTransferDetailsAsync } from "@/lib/actions/transfer"
 import { NETWORK_OPTIONS } from "@/lib/constants/networks"
 import { WalletToBankFormValues, walletToBankSchema } from "@/lib/validations/momo"
+import { maskAccountNumber } from "@/lib/utils"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { IconArrowBack } from "@tabler/icons-react"
 import { BanknoteIcon, CheckIcon, CodeIcon, LightbulbIcon, ShieldAlertIcon, SmartphoneIcon, WalletIcon } from "lucide-react"
@@ -646,9 +647,9 @@ function TransactionResult({
 
     const rows: { label: string; value: string }[] = [
         { label: "Reference", value: receipt.reference },
-        { label: "Receiving Account", value: `${receipt.toAccountName} (${receipt.toAccount})` },
+        { label: "Receiving Account", value: `${receipt.toAccountName} (${maskAccountNumber(receipt.toAccount)})` },
         { label: "Network", value: receipt.networkLabel },
-        { label: "Wallet Number", value: receipt.walletNumber },
+        { label: "Wallet Number", value: maskAccountNumber(receipt.walletNumber) },
         {
             label: "Date",
             value: new Intl.DateTimeFormat("en-GH", {

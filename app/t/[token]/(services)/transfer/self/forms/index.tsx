@@ -13,6 +13,7 @@ import { toast } from "@/components/ui/toast"
 import { Account, getAccountBalanceAsync, getAccountsAsync } from "@/lib/actions/account"
 import { getTransferDetailsAsync, selfTransferAsync, TransferEnquiry } from "@/lib/actions/transfer"
 import { SelfTransferFormValues, selfTransferSchema } from "@/lib/validations/transfer"
+import { maskAccountNumber } from "@/lib/utils"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { IconArrowBack } from "@tabler/icons-react"
 import { BanknoteIcon, CheckIcon, CodeIcon, LightbulbIcon, LockIcon, WalletIcon } from "lucide-react"
@@ -550,8 +551,8 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: Transfe
 
     const rows: { label: string; value: string }[] = [
         { label: "Reference", value: receipt.reference },
-        { label: "From", value: `${receipt.fromAccountName} (${receipt.fromAccount})` },
-        { label: "To", value: `${receipt.toAccountName} (${receipt.toAccount})` },
+        { label: "From", value: `${receipt.fromAccountName} (${maskAccountNumber(receipt.fromAccount)})` },
+        { label: "To", value: `${receipt.toAccountName} (${maskAccountNumber(receipt.toAccount)})` },
         { label: "Narration", value: receipt.narration },
         {
             label: "Date",
