@@ -1,7 +1,11 @@
 "use client"
 
+
+import { notifyError } from "@/lib/notify"
 import { FormSkeleton } from "@/components/form-skeleton"
+import { maskAccountNumber } from "@/lib/utils"
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { SuccessModal } from "@/components/success-modal"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -9,7 +13,6 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import { toast } from "@/components/ui/toast"
 import { Account, addAccountAsync, getAccountsAsync, getBalanceAsync } from "@/lib/actions/account"
 import { AddAccountFormValues, addAccountSchema } from "@/lib/validations/account"
 import { CheckBalanceFormValues, checkBalanceSchema } from "@/lib/validations/check_balance"
@@ -17,6 +20,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { CodeIcon, LightbulbIcon, LockIcon, WalletIcon } from "lucide-react"
 import { useEffect, useState, useTransition } from "react"
 import { Controller, useForm } from "react-hook-form"
+import { PinPrompt } from "@/components/pin-prompt"
+import { AccountOption } from "@/components/account-option"
 
 
 export default function AddAccountForm() {
@@ -48,10 +53,7 @@ export default function AddAccountForm() {
             var response = await getAccountsAsync({ isLinked: false });
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -65,21 +67,37 @@ export default function AddAccountForm() {
             var response = await addAccountAsync(payload)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
 
-            setMessage(`You have successfully added your account ${getValues("account")}`)
+            setMessage(`You have successfully added your account ${maskAccountNumber(getValues("account"))}`)
             setOpen(true)
             reset()
         })
     }
 
     if (accountsPending) return <FormSkeleton />
+
+    if (accounts.length === 0) {
+        return (
+            <Empty>
+                <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                        <WalletIcon />
+                    </EmptyMedia>
+                    <EmptyTitle>All your accounts are already linked to Sidi</EmptyTitle>
+                    <EmptyDescription>
+                        There are no other active accounts on your Ghana Card to add.
+                    </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                    <ReturnToWhatsapp />
+                </EmptyContent>
+            </Empty>
+        )
+    }
 
     return (
         <>
@@ -93,13 +111,13 @@ export default function AddAccountForm() {
                                 htmlFor={field.name}
                                 className="text-sm"
                             >
-                                Select your Primary Account{" "}
+                                Account to add{" "}
                                 <span className="text-destructive">*</span>
                             </FieldLabel>
 
                             <Select
                                 value={field.value}
-                                onValueChange={field.onChange}
+                                onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                             >
                                 <SelectTrigger
                                     id={field.name}
@@ -114,7 +132,12 @@ export default function AddAccountForm() {
                                 >
                                     <div className="flex items-center gap-2">
                                         <CodeIcon className="size-4 text-black/40" />
-                                        <SelectValue placeholder="-- Choose --" />
+                                        <SelectValue>
+                                            {(value: string | null) => {
+                                                const selected = accounts.find((a) => a.accountNumber === value)
+                                                return selected ? <AccountOption account={selected} /> : "-- Choose --"
+                                            }}
+                                        </SelectValue>
                                     </div>
                                 </SelectTrigger>
 
@@ -125,7 +148,7 @@ export default function AddAccountForm() {
                                             value={account.accountNumber}
                                             className="text-sm"
                                         >
-                                            {account.accountNumber}
+                                            <AccountOption account={account} />
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -150,6 +173,8 @@ export default function AddAccountForm() {
                     control={control}
                     render={({ field, fieldState }) => (
                         <Field>
+                            <PinPrompt description="Enter your 4-digit PIN to link this account. Never share it with anyone." />
+
                             <FieldLabel
                                 htmlFor={field.name}
                                 className="text-sm"
@@ -191,7 +216,7 @@ export default function AddAccountForm() {
                 />
 
                 <Button type="submit" className="w-full">
-                    {pending ? <Spinner /> : "Get Balance"}
+                    {pending ? <Spinner /> : "Add Account"}
                 </Button>
             </form>
 

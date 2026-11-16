@@ -1,6 +1,6 @@
 "use server"
 
-import { getApiErrorMessage } from "../errors";
+import { getApiErrorMessage, getUnexpectedErrorMessage } from "../errors";
 import { sendAsync } from "../network/client";
 import { getCookieValue } from "../network/session";
 import { IdVerificationFormValues, idVerificationSchema } from "../validations/id_verification"
@@ -52,7 +52,7 @@ export async function verifyGhanaCardAgainstFCUBSAsync(values: IdVerificationFor
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -80,9 +80,9 @@ export async function verifySelfieAsync(image: string): Promise<VerifySelfieResu
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error
-            ? (err.name === "TimeoutError" ? "Verification is taking too long. Please try again." : err.message)
-            : "Something went wrong. Please try again.";
+        const message = err instanceof Error && err.name === "TimeoutError"
+            ? "Verification is taking too long. Please try again."
+            : getUnexpectedErrorMessage(err);
         return { success: false, error: message }
     }
 }

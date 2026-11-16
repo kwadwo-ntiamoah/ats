@@ -1,5 +1,8 @@
 "use client"
 
+
+import { formatGhs, formatReceiptDate } from "@/lib/format"
+import { notifyError } from "@/lib/notify"
 import { DownloadReceiptButton } from "@/components/download-receipt-button"
 import { FormSkeleton } from "@/components/form-skeleton"
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp"
@@ -10,7 +13,6 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "@/components/ui/toast"
 import { Account, getAccountBalanceAsync, getAccountsAsync } from "@/lib/actions/account"
 import { Bank, getBanksAsync, getGipAccountDetailsAsync } from "@/lib/actions/bank"
 import { getTransferDetailsAsync, localTransferAsync } from "@/lib/actions/transfer"
@@ -22,6 +24,8 @@ import { ArrowLeftIcon } from "lucide-react"
 import { BanknoteIcon, CheckIcon, CodeIcon, LightbulbIcon, LockIcon, UserIcon, WalletIcon } from "lucide-react"
 import { useEffect, useState, useTransition } from "react"
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from "react-hook-form"
+import { getChargeQuoteAsync, type ChargeQuote } from "@/lib/actions/charges"
+import { chargeRows } from "@/components/charge-rows"
 
 type BankOption = { value: string; label: string }
 
@@ -41,6 +45,7 @@ type LocalTransferEnquiry = {
     toAccountName: string
     amount: number
     narration: string
+    charges?: ChargeQuote
 }
 
 type LocalTransferReceipt = LocalTransferEnquiry & {
@@ -103,10 +108,7 @@ export default function LocalTransferForm() {
             var response = await localTransferAsync(payload)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -191,10 +193,7 @@ function TransferDetails({ step, recipientLookup }: { step: number; recipientLoo
             var response = await getAccountsAsync({ isLinked: true });
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -208,10 +207,7 @@ function TransferDetails({ step, recipientLookup }: { step: number; recipientLoo
             var response = await getBanksAsync();
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -286,7 +282,7 @@ function TransferDetails({ step, recipientLookup }: { step: number; recipientLoo
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                         >
                             <SelectTrigger
                                 id={field.name}
@@ -331,7 +327,7 @@ function TransferDetails({ step, recipientLookup }: { step: number; recipientLoo
                                         <span className="text-muted-foreground">
                                             Available balance:{" "}
                                             <span className="font-medium text-foreground">
-                                                {new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(balance)}
+                                                {formatGhs(balance)}
                                             </span>
                                         </span>
                                     </>
@@ -367,7 +363,7 @@ function TransferDetails({ step, recipientLookup }: { step: number; recipientLoo
                         <Combobox
                             items={bankOptions}
                             value={bankOptions.find((item) => item.value === field.value) ?? null}
-                            onValueChange={(item) => field.onChange(item?.value ?? "")}
+                            onValueChange={(item) => { field.onChange(item?.value ?? ""); field.onBlur() }}
                             isItemEqualToValue={(a, b) => a.value === b.value}
                         >
                             <ComboboxInput
@@ -581,37 +577,37 @@ function TransactionConfirmation({
         startTransition(async () => {
             const { fromAccount, bankCode, toAccount, amount, narration } = getValues()
 
-            const [fromRes, toRes, banksRes] = await Promise.all([
+            const [fromRes, toRes, banksRes, chargesRes] = await Promise.all([
                 getTransferDetailsAsync(fromAccount),
                 getGipAccountDetailsAsync(bankCode, toAccount),
                 getBanksAsync(),
+                getChargeQuoteAsync("OtherBankTransfer", Number(amount)),
             ])
 
             if (!fromRes.success) {
-                toast.add({
-                    title: "Warning",
-                    description: fromRes.error,
-                });
+                notifyError(fromRes.error);
 
                 onFailed()
                 return;
             }
 
             if (!toRes.success) {
-                toast.add({
-                    title: "Warning",
-                    description: toRes.error,
-                });
+                notifyError(toRes.error);
 
                 onFailed()
                 return;
             }
 
             if (!banksRes.success) {
-                toast.add({
-                    title: "Warning",
-                    description: banksRes.error,
-                });
+                notifyError(banksRes.error);
+
+                onFailed()
+                return;
+            }
+
+            // The customer must see the charges before confirming
+            if (!chargesRes.success) {
+                notifyError(chargesRes.error);
 
                 onFailed()
                 return;
@@ -628,6 +624,7 @@ function TransactionConfirmation({
                 toAccountName: toRes.accountName,
                 amount: Number(amount),
                 narration,
+                charges: chargesRes.quote,
             })
         })
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -643,9 +640,10 @@ function TransactionConfirmation({
         { label: "To", value: `${details.toAccountName} (${details.toAccount})` },
         {
             label: "Amount",
-            value: new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(details.amount)
+            value: formatGhs(details.amount)
         },
         { label: "Narration", value: details.narration },
+        ...chargeRows(details.charges),
     ]
 
     return (
@@ -736,12 +734,10 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: LocalTr
         { label: "Bank", value: receipt.bankName },
         { label: "To", value: `${receipt.toAccountName} (${maskAccountNumber(receipt.toAccount)})` },
         { label: "Narration", value: receipt.narration },
+        ...chargeRows(receipt.charges, "Total debited"),
         {
             label: "Date",
-            value: new Intl.DateTimeFormat("en-GH", {
-                dateStyle: "medium",
-                timeStyle: "short",
-            }).format(receipt.completedAt)
+            value: formatReceiptDate(receipt.completedAt)
         },
     ]
 
@@ -756,7 +752,7 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: LocalTr
                     <p className="text-base font-medium">Transfer successful</p>
 
                     <p className="text-2xl font-semibold tracking-tight">
-                        {new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(receipt.amount)}
+                        {formatGhs(receipt.amount)}
                     </p>
                 </div>
 

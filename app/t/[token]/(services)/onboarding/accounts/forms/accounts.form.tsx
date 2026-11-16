@@ -1,5 +1,7 @@
 "use client"
 
+
+import { notifyError } from "@/lib/notify"
 import { useTransition, useState, useEffect } from "react"
 import { Controller, useForm } from "react-hook-form"
 import {
@@ -41,9 +43,10 @@ import { Button } from "@/components/ui/button"
 import BackButton from "@/components/goBack"
 import { PinCreationTips } from "@/components/pin-create-tips"
 import { Account, getAccountsAsync, onboardAsync } from "@/lib/actions/account"
-import { toast } from "@/components/ui/toast"
 import { FormSkeleton } from "@/components/form-skeleton"
 import { useParams, useRouter } from "next/navigation"
+import { PinPrompt } from "@/components/pin-prompt"
+import { AccountOption } from "@/components/account-option"
 
 
 export default function AccountsForm() {
@@ -74,10 +77,7 @@ export default function AccountsForm() {
             var response = await getAccountsAsync();
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -91,10 +91,7 @@ export default function AccountsForm() {
             var response = await onboardAsync(data)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -136,7 +133,7 @@ export default function AccountsForm() {
 
                             <Select
                                 value={field.value}
-                                onValueChange={field.onChange}
+                                onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                             >
                                 <SelectTrigger
                                     id={field.name}
@@ -151,7 +148,12 @@ export default function AccountsForm() {
                                 >
                                     <div className="flex items-center gap-2">
                                         <CodeIcon className="size-4 text-black/40" />
-                                        <SelectValue placeholder="-- Choose --" />
+                                        <SelectValue>
+                                            {(value: string | null) => {
+                                                const selected = accounts.find((a) => a.accountNumber === value)
+                                                return selected ? <AccountOption account={selected} /> : "-- Choose --"
+                                            }}
+                                        </SelectValue>
                                     </div>
                                 </SelectTrigger>
 
@@ -162,7 +164,7 @@ export default function AccountsForm() {
                                             value={account.accountNumber}
                                             className="text-sm"
                                         >
-                                            {account.accountNumber}
+                                            <AccountOption account={account} />
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -175,14 +177,14 @@ export default function AccountsForm() {
                     )}
                 />
 
-                <p className="font-semibold ">Create a PIN for transactions</p>
-
                 {/* PIN */}
                 <Controller
                     name="pin"
                     control={control}
                     render={({ field, fieldState }) => (
                         <Field>
+                            <PinPrompt title="Create a PIN for transactions" description="Choose a 4-digit PIN, then enter it again to confirm. You'll use it to approve transactions, so keep it to yourself." />
+
                             <FieldLabel
                                 htmlFor={field.name}
                                 className="text-sm"

@@ -1,6 +1,6 @@
 "use server"
 
-import { getApiErrorMessage } from "../errors"
+import { getApiErrorMessage, getUnexpectedErrorMessage } from "../errors"
 import { sendAsync } from "../network/client"
 import { getCookieValue } from "../network/session"
 import { AddAccountFormValues, addAccountSchema, RemoveAccountFormValues, removeAccountSchema } from "../validations/account"
@@ -10,6 +10,7 @@ import { OnboardingAccountFormValues, onboardingAccountsSchema } from "../valida
 export type Account = {
     accountNumber: string
     accountName: string
+    currency?: string | null
 }
 
 type GetAccountsResult =
@@ -48,7 +49,7 @@ export async function getAccountsAsync({ isLinked = false }: GetAccountsOptions 
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -89,7 +90,7 @@ export async function onboardAsync(values: OnboardingAccountFormValues): Promise
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -133,7 +134,7 @@ export async function getBalanceAsync(values: CheckBalanceFormValues): Promise<G
             balance: apiData.balance
         }
     } catch (err) {
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -160,7 +161,7 @@ export async function getAccountBalanceAsync(account: string): Promise<GetBalanc
             balance: apiData.balance
         }
     } catch (err) {
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -205,7 +206,7 @@ export async function addAccountAsync(values: AddAccountFormValues): Promise<Add
             account: apiData.account
         }
     } catch (err) {
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
     }
 }
@@ -249,7 +250,7 @@ export async function removeAccountAsync(values: RemoveAccountFormValues): Promi
             status: apiData.status
         }
     } catch (err) {
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
     }
 }

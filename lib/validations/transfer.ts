@@ -34,6 +34,10 @@ export const gcbTransferSchema = z.object({
     narration: z.string().min(1, "Narration is required"),
     pin: z.string().min(1, "PIN is required").length(4, "PIN must be exactly 4 digits")
 })
+    .refine((data) => !data.fromAccount || data.fromAccount.trim() !== data.toAccount.trim(), {
+        message: "You can't transfer to the same account. Enter a different account number.",
+        path: ["toAccount"],
+    })
 
 export type GcbTransferFormValues = z.infer<typeof gcbTransferSchema>
 

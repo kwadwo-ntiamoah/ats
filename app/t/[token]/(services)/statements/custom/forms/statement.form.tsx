@@ -1,5 +1,7 @@
 "use client"
 
+
+import { notifyError } from "@/lib/notify"
 import { FormSkeleton } from "@/components/form-skeleton";
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp";
 import { Button } from "@/components/ui/button";
@@ -9,7 +11,6 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
 import { Account, getAccountsAsync } from "@/lib/actions/account";
 import { getStatementAsync } from "@/lib/actions/statement";
 import { GetAccountStatementFormValues, getAccountStatementSchema } from "@/lib/validations/statement";
@@ -18,6 +19,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import { CodeIcon, LightbulbIcon, LockIcon, PlaneIcon, SendIcon, WalletIcon } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form";
+import { PinPrompt } from "@/components/pin-prompt"
 
 export default function CustomStatementForm() {
     const [step, setStep] = useState(0)
@@ -32,7 +34,7 @@ export default function CustomStatementForm() {
     })
 
     async function goNext() {
-        const valid = await form.trigger(["account"], {
+        const valid = await form.trigger(["account", "startDate", "endDate"], {
             shouldFocus: true,
         });
 
@@ -55,10 +57,7 @@ export default function CustomStatementForm() {
             var response = await getStatementAsync(payload)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -133,10 +132,7 @@ function StatementDetails({ step }: { step: number }) {
             var response = await getAccountsAsync({ isLinked: true });
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -165,7 +161,7 @@ function StatementDetails({ step }: { step: number }) {
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                         >
                             <SelectTrigger
                                 id={field.name}
@@ -213,6 +209,7 @@ function StatementDetails({ step }: { step: number }) {
                 control={control}
                 name="startDate"
                 label="Start date"
+                required
                 disabled={(date) => date > new Date()}
             />
 
@@ -220,6 +217,7 @@ function StatementDetails({ step }: { step: number }) {
                 control={control}
                 name="endDate"
                 label="End date"
+                required
                 disabled={(date) => date > new Date()}
             />
 
@@ -246,6 +244,8 @@ function Pin({ step }: { step: number }) {
             control={control}
             render={({ field, fieldState }) => (
                 <Field>
+                    <PinPrompt description="Enter your 4-digit PIN to request your statement. Never share it with anyone." />
+
                     <FieldLabel
                         htmlFor={field.name}
                         className="text-sm"

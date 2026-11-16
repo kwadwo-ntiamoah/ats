@@ -1,5 +1,8 @@
 "use client"
+import { formatGhs } from "@/lib/format"
 
+
+import { notifyError } from "@/lib/notify"
 import { FormSkeleton } from "@/components/form-skeleton";
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp";
 import { Button } from "@/components/ui/button";
@@ -7,11 +10,10 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
 import { Account, getAccountsAsync } from "@/lib/actions/account";
 import { getMiniStatementAsync, MiniStatement, MiniStatementList } from "@/lib/actions/statement";
 import { cn } from "@/lib/utils";
-import { GetAccountStatementFormValues, getAccountStatementSchema, GetMiniStatementFormValues } from "@/lib/validations/statement";
+import { getMiniStatementSchema, GetMiniStatementFormValues } from "@/lib/validations/statement";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeftIcon } from "lucide-react";
 import { ArrowDownLeft, ArrowUpRight, CodeIcon, LightbulbIcon, LockIcon, ReceiptText } from "lucide-react";
@@ -19,14 +21,16 @@ import { useEffect, useState, useTransition } from "react";
 import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form";
 import { format, parseISO } from "date-fns";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { PinPrompt } from "@/components/pin-prompt"
 
 export default function MiniStatementForm() {
     const [step, setStep] = useState(0)
+    const [statementList, setStatementList] = useState<MiniStatementList>([])
 
     const [isPending, startTransition] = useTransition()
 
     const form = useForm<GetMiniStatementFormValues>({
-        resolver: zodResolver(getAccountStatementSchema),
+        resolver: zodResolver(getMiniStatementSchema),
         defaultValues: { account: "", pin: "" },
         mode: "onTouched"
     })
@@ -55,14 +59,12 @@ export default function MiniStatementForm() {
             var response = await getMiniStatementAsync(payload)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
 
+            setStatementList(response.data)
             setStep((s) => s + 1)
         })
     }
@@ -79,7 +81,7 @@ export default function MiniStatementForm() {
             <FormProvider {...form}>
                 <form onSubmit={form.handleSubmit(onsubmitAsync)} className="space-y-5">
                     <StatementDetails step={step} />
-                    <StatementEntries step={step} />
+                    <StatementEntries step={step} statementList={statementList} />
 
                     {
                         step === 0 && <Button type="submit" disabled={isPending} className="w-full">
@@ -95,7 +97,7 @@ export default function MiniStatementForm() {
 function StatementDetails({ step }: { step: number }) {
     if (step !== 0) return null;
 
-    const { control } = useFormContext<GetAccountStatementFormValues>()
+    const { control } = useFormContext<GetMiniStatementFormValues>()
 
     const [accounts, setAccounts] = useState<Account[]>([])
     const [accountsPending, startAccountsTransition] = useTransition()
@@ -105,10 +107,7 @@ function StatementDetails({ step }: { step: number }) {
             var response = await getAccountsAsync({ isLinked: true });
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -144,7 +143,7 @@ function StatementDetails({ step }: { step: number }) {
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                         >
                             <SelectTrigger
                                 id={field.name}
@@ -193,6 +192,8 @@ function StatementDetails({ step }: { step: number }) {
                 control={control}
                 render={({ field, fieldState }) => (
                     <Field>
+                        <PinPrompt description="Enter your 4-digit PIN to view your mini statement. Never share it with anyone." />
+
                         <FieldLabel
                             htmlFor={field.name}
                             className="text-sm"
@@ -236,41 +237,11 @@ function StatementDetails({ step }: { step: number }) {
     )
 }
 
-function StatementEntries({ step }: { step: number }) {
+// Shows the entries fetched when the form was submitted. They are not fetched again here:
+// the link is used up by that request, and a second request would also send the customer
+// a second WhatsApp confirmation.
+function StatementEntries({ step, statementList }: { step: number; statementList: MiniStatementList }) {
     if (step !== 1) return null;
-
-    const [pending, startTransition] = useTransition()
-    const [statementList, setStatementList] = useState<MiniStatementList>([])
-
-    const { getValues } = useFormContext<GetMiniStatementFormValues>()
-
-    const values = getValues()
-
-    useEffect(() => {
-        fetchMiniStatementAsync()
-    }, [])
-
-    const fetchMiniStatementAsync = () => {
-        startTransition(async () => {
-
-            // verify ghana card against flexcube
-            var response = await getMiniStatementAsync(values);
-
-            if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
-
-                return;
-            }
-
-            setStatementList(response.data)
-        })
-    }
-
-    if (pending) return <FormSkeleton />
-
 
     return (
         <Card className="w-full border-muted-foreground/10 shadow-sm">
@@ -307,10 +278,7 @@ function StatementEntries({ step }: { step: number }) {
     )
 }
 
-const currencyFormatter = new Intl.NumberFormat("en-GH", {
-    style: "currency",
-    currency: "GHS",
-});
+const currencyFormatter = { format: formatGhs };
 
 function isCredit(marker: string | null) {
     return marker?.toUpperCase().startsWith("C") ?? false;
@@ -345,7 +313,7 @@ function MiniStatementRow({ entry }: { entry: MiniStatement }) {
 
             <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
-                    <p className="truncate text-sm font-medium leading-tight">
+                    <p className="min-w-0 break-words text-sm font-medium leading-snug">
                         {entry.narration?.trim() || "Transaction"}
                     </p>
                     <p
@@ -359,12 +327,12 @@ function MiniStatementRow({ entry }: { entry: MiniStatement }) {
                     </p>
                 </div>
 
-                <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
                     <span>{formatTxnDate(entry.txnDate)}</span>
                     {reference && (
                         <>
                             <span aria-hidden="true">&middot;</span>
-                            <span className="truncate">Ref: {reference}</span>
+                            <span className="min-w-0 break-all">Ref: {reference}</span>
                         </>
                     )}
                 </div>

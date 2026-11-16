@@ -1,5 +1,8 @@
 "use client"
 
+
+import { formatGhs, formatReceiptDate } from "@/lib/format"
+import { notifyError } from "@/lib/notify"
 import { DownloadReceiptButton } from "@/components/download-receipt-button"
 import { FormSkeleton } from "@/components/form-skeleton"
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp"
@@ -9,7 +12,6 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { GcbLoader } from "@/components/page-loader"
-import { toast } from "@/components/ui/toast"
 import { Account, getAccountBalanceAsync, getAccountsAsync } from "@/lib/actions/account"
 import {
     WalletToBankStatus,
@@ -38,7 +40,7 @@ const GUIDE_STEPS = [
 ]
 
 function formatCurrency(amount: number) {
-    return new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(amount)
+    return formatGhs(amount)
 }
 
 type WalletToBankEnquiry = {
@@ -95,10 +97,7 @@ export default function WalletToBankForm() {
             var response = await initiateWalletToBankAsync(values)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -189,10 +188,7 @@ function TransferDetails({ step }: { step: number }) {
             var response = await getAccountsAsync({ isLinked: true });
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -260,7 +256,7 @@ function TransferDetails({ step }: { step: number }) {
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                         >
                             <SelectTrigger
                                 id={field.name}
@@ -340,7 +336,7 @@ function TransferDetails({ step }: { step: number }) {
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                         >
                             <SelectTrigger
                                 id={field.name}
@@ -495,10 +491,7 @@ function TransactionConfirmation({
             const toRes = await getTransferDetailsAsync(toAccount)
 
             if (!toRes.success) {
-                toast.add({
-                    title: "Warning",
-                    description: toRes.error,
-                });
+                notifyError(toRes.error);
 
                 return;
             }
@@ -654,10 +647,7 @@ function TransactionResult({
         { label: "Wallet Number", value: maskAccountNumber(receipt.walletNumber) },
         {
             label: "Date",
-            value: new Intl.DateTimeFormat("en-GH", {
-                dateStyle: "medium",
-                timeStyle: "short",
-            }).format(receipt.completedAt)
+            value: formatReceiptDate(receipt.completedAt)
         },
     ]
 

@@ -7,7 +7,7 @@ export const idVerificationSchema = z.object({
         .toUpperCase()
         .regex(
             /^GHA-\d{9}-\d$/,
-            "Enter a valid Ghana Card PIN"
+            "Enter a valid Ghana Card number"
         ),
 })
 

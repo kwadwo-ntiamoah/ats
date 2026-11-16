@@ -1,8 +1,8 @@
 "use server"
 
-import { getApiErrorMessage } from "../errors";
-import { sendAsync } from "../network/client";
-import { clearLegacyTokenCookies, getCookieValue } from "../network/session";
+import { getApiErrorMessage, getUnexpectedErrorMessage } from "../errors";
+import { LINK_TOKEN_COOKIE, sendAsync } from "../network/client";
+import { clearLegacyTokenCookies, getCookieValue, setCookieValue } from "../network/session";
 import { logger } from "../logger";
 
 type ValidateTokenResponse = {
@@ -44,6 +44,9 @@ export async function validateTokenAsync(token: string): Promise<ValidateTokenRe
 
         var apiData = jsonResponse as ValidateTokenResponse
 
+        // Remembered for browsers that don't send a Referer with later requests (see getLinkToken).
+        await setCookieValue(LINK_TOKEN_COOKIE, decodedToken, 15 * 60);
+
         logger.info({ requiresOtp: apiData.requiresOtp, action: apiData.link?.action }, "Link validated");
 
         return {
@@ -51,7 +54,7 @@ export async function validateTokenAsync(token: string): Promise<ValidateTokenRe
             data: apiData
         }
     } catch (err) {
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         logger.error({ err }, "Link validation failed");
         return { success: false, error: message }
 

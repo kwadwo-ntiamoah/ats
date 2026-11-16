@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import TitleWrapper from "../../../../../../components/title-wrapper";
 import BackButton from "@/components/goBack";
 import { VerificationCamera } from "@/components/verification-camera";
+import ProgressBar from "../components/progress-bar";
 import { useSelfieSubmission } from "@/lib/hooks/useSelfieSubmission";
 
 export default function SelfieCapture() {
@@ -27,6 +28,8 @@ export default function SelfieCapture() {
                 <div>
                     <BackButton />
                 </div>
+
+                <ProgressBar progress={67} label="Step 2 of 3" />
 
                 <VerificationCamera onVerified={submit} pending={pending} pendingLabel={label} />
             </div>

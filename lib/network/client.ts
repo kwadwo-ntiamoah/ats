@@ -1,3 +1,4 @@
+import { cookies, headers } from "next/headers"
 import { logger } from "@/lib/logger"
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -102,9 +103,35 @@ export async function fetchWithToken(path: string, token: string, init: RequestI
     }
 }
 
+export const LINK_TOKEN_COOKIE = "link_token";
+
+/**
+ * The token of the link the customer is working in. Links are single-use, so the API needs
+ * it with every action to check the link is still good and to use it up on success.
+ *
+ * Every page lives under /t/{token}/..., so the token is read from the address of the page
+ * that made the request. The cookie set when the link was opened is the fallback for
+ * browsers that don't send a Referer.
+ */
+async function getLinkToken(): Promise<string | null> {
+    try {
+        const referer = (await headers()).get("referer");
+        const segment = referer ? new URL(referer).pathname.match(/\/t\/([^/]+)/)?.[1] : undefined;
+        if (segment) return decodeURIComponent(segment);
+
+        return (await cookies()).get(LINK_TOKEN_COOKIE)?.value ?? null;
+    } catch {
+        // Outside a request (or a malformed Referer): the API will ask for a new link.
+        return null;
+    }
+}
+
 export async function sendAsync(path: string, init: RequestInit = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
     const accessToken = await getSystemToken();
     if (!accessToken) throw new Error("UNAUTHENTICATED");
+
+    const linkToken = await getLinkToken();
+    if (linkToken) init = { ...init, headers: { ...init.headers, "X-LINK-TOKEN": linkToken } };
 
     // fetchWithToken logs each attempt, including failures.
     let res = await fetchWithToken(path, accessToken, init, timeoutMs);

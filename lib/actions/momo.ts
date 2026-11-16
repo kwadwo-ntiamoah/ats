@@ -1,7 +1,7 @@
 "use server"
 
 import { NETWORK_OPTIONS } from "../constants/networks"
-import { getApiErrorMessage } from "../errors"
+import { getApiErrorMessage, getUnexpectedErrorMessage } from "../errors"
 import { sendAsync } from "../network/client"
 import { getCookieValue } from "../network/session"
 import { BankToWalletFormValues, WalletToBankFormValues, bankToWalletSchema, walletToBankSchema } from "../validations/momo"
@@ -55,7 +55,7 @@ export async function bankToWalletAsync(values: BankToWalletFormValues): Promise
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -90,7 +90,7 @@ export async function getWalletNumberAsync(): Promise<GetWalletNumberResult> {
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -142,7 +142,7 @@ export async function initiateWalletToBankAsync(values: WalletToBankFormValues):
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -180,7 +180,7 @@ export async function checkWalletToBankStatusAsync(toAccount: string, reference:
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }

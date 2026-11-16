@@ -1,6 +1,6 @@
 "use server"
 
-import { getApiErrorMessage } from "../errors";
+import { getApiErrorMessage, getUnexpectedErrorMessage } from "../errors";
 import { sendAsync } from "../network/client";
 import { getCookieValue } from "../network/session";
 import { GetAccountStatementFormValues, getAccountStatementSchema, GetMiniStatementFormValues } from "../validations/statement";
@@ -44,7 +44,7 @@ export async function getStatementAsync(values: GetAccountStatementFormValues): 
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -98,7 +98,7 @@ export async function getMiniStatementAsync(values: GetMiniStatementFormValues) 
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }

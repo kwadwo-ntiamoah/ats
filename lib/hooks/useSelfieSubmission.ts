@@ -1,7 +1,8 @@
 "use client";
 
+
+import { notifyError } from "@/lib/notify"
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "@/components/ui/toast";
 import { verifySelfieAsync } from "@/lib/actions/onboarding";
 import { clientLog, describeError } from "@/lib/client-log";
 import { blobToBase64, compressForUpload, withTimeout } from "@/lib/utils";
@@ -45,7 +46,7 @@ export function useSelfieSubmission(onVerified: () => void) {
             clientLog("verify_done", { success: result.success, ms: elapsed() });
 
             if (!result.success) {
-                toast.add({ title: "Warning", description: result.error });
+                notifyError(result.error);
                 return;
             }
 
@@ -53,7 +54,7 @@ export function useSelfieSubmission(onVerified: () => void) {
             onVerified();
         } catch (err) {
             clientLog("verify_failed", { error: describeError(err), ms: elapsed() });
-            toast.add({ title: "Warning", description: "We couldn't reach the server. Check your connection and try again." });
+            notifyError("We couldn't reach the server. Check your connection and try again.");
         } finally {
             inFlightRef.current = false;
             // Stay in the pending state while navigating away after success.

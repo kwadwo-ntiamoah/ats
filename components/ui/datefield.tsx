@@ -26,6 +26,7 @@ interface DateFieldProps<T extends FieldValues> {
     label: string;
     placeholder?: string;
     disabled?: (date: Date) => boolean;
+    required?: boolean;
 }
 
 export function DateField<T extends FieldValues>({
@@ -34,6 +35,7 @@ export function DateField<T extends FieldValues>({
     label,
     placeholder = "Pick a date",
     disabled,
+    required,
 }: DateFieldProps<T>) {
     return (
         <Controller
@@ -41,7 +43,10 @@ export function DateField<T extends FieldValues>({
             name={name}
             render={({ field, fieldState }) => (
                 <Field data-invalid={!!fieldState.error}>
-                    <FieldLabel htmlFor={name}>{label}</FieldLabel>
+                    <FieldLabel htmlFor={name}>
+                        {label}
+                        {required && <span className="text-destructive">*</span>}
+                    </FieldLabel>
                     <Popover>
                         {/* The trigger is the button itself: a <Button> inside the trigger's own
                             <button> is invalid HTML and breaks hydration, crashing the page. */}

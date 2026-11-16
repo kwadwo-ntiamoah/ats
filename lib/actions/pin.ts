@@ -1,6 +1,6 @@
 "use server"
 
-import { getApiErrorMessage } from "../errors";
+import { getApiErrorMessage, getUnexpectedErrorMessage } from "../errors";
 import { sendAsync } from "../network/client";
 import { getCookieValue } from "../network/session";
 import { ChangePINFormValues, changePINSchema, ResetPINFormValues, resetPINSchema } from "../validations/pin"
@@ -37,7 +37,7 @@ export async function changePINAsync(values: ChangePINFormValues): Promise<Chang
             success: true
         }
     } catch (err) {
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -75,7 +75,7 @@ export async function resetPINAsync(values: ResetPINFormValues): Promise<ResetPI
             success: true
         }
     } catch (err) {
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }

@@ -1,6 +1,6 @@
 "use server"
 
-import { getApiErrorMessage } from "../errors"
+import { getApiErrorMessage, getUnexpectedErrorMessage } from "../errors"
 import { sendAsync } from "../network/client"
 import { getCookieValue } from "../network/session"
 
@@ -33,7 +33,7 @@ export async function getCustomerProfileAsync(): Promise<GetCustomerProfileResul
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }

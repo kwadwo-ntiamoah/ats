@@ -1,18 +1,20 @@
 "use client"
 
+
+import { notifyError } from "@/lib/notify"
 import { PinCreationTips } from "@/components/pin-create-tips"
 import { SuccessModal } from "@/components/success-modal"
 import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
-import { toast } from "@/components/ui/toast"
 import { resetPINAsync } from "@/lib/actions/pin"
 import { ResetPINFormValues, resetPINSchema } from "@/lib/validations/pin"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { IconPassword } from "@tabler/icons-react"
 import { useState, useTransition } from "react"
 import { Controller, useForm } from "react-hook-form"
+import { PinPrompt } from "@/components/pin-prompt"
 
 export default function ResetPinForm() {
 
@@ -36,10 +38,7 @@ export default function ResetPinForm() {
             var response = await resetPINAsync(payload)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -61,6 +60,8 @@ export default function ResetPinForm() {
                 control={control}
                 render={({ field, fieldState }) => (
                     <Field>
+                        <PinPrompt title="Set your new PIN" description="Choose a new 4-digit PIN, then enter it again to confirm. You'll use it to approve transactions, so keep it to yourself." />
+
                         <FieldLabel
                             htmlFor={field.name}
                             className="text-sm"

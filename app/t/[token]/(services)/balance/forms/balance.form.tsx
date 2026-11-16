@@ -1,5 +1,8 @@
 "use client"
 
+
+import { formatGhs } from "@/lib/format"
+import { notifyError } from "@/lib/notify"
 import { FormSkeleton } from "@/components/form-skeleton"
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp"
 import { Button } from "@/components/ui/button"
@@ -8,13 +11,13 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import { toast } from "@/components/ui/toast"
 import { Account, getAccountsAsync, getBalanceAsync } from "@/lib/actions/account"
 import { CheckBalanceFormValues, checkBalanceSchema } from "@/lib/validations/check_balance"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { CodeIcon, LightbulbIcon, LockIcon, WalletIcon } from "lucide-react"
 import { useEffect, useState, useTransition } from "react"
 import { Controller, useForm } from "react-hook-form"
+import { PinPrompt } from "@/components/pin-prompt"
 
 
 export default function BalanceForm() {
@@ -46,10 +49,7 @@ export default function BalanceForm() {
             var response = await getAccountsAsync({ isLinked: true });
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -63,10 +63,7 @@ export default function BalanceForm() {
             var response = await getBalanceAsync(payload)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -91,13 +88,13 @@ export default function BalanceForm() {
                                 htmlFor={field.name}
                                 className="text-sm"
                             >
-                                Select your Primary Account{" "}
+                                Select your Account{" "}
                                 <span className="text-destructive">*</span>
                             </FieldLabel>
 
                             <Select
                                 value={field.value}
-                                onValueChange={field.onChange}
+                                onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                             >
                                 <SelectTrigger
                                     id={field.name}
@@ -148,6 +145,8 @@ export default function BalanceForm() {
                     control={control}
                     render={({ field, fieldState }) => (
                         <Field>
+                            <PinPrompt description="Enter your 4-digit PIN to view your balance. Never share it with anyone." />
+
                             <FieldLabel
                                 htmlFor={field.name}
                                 className="text-sm"
@@ -213,7 +212,7 @@ export default function BalanceForm() {
                             </p>
                             <p className="text-3xl font-medium tracking-tight">
                                 {balance !== undefined
-                                    ? new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' }).format(balance)
+                                    ? formatGhs(balance)
                                     : 'Loading...'}
                             </p>
                         </div>

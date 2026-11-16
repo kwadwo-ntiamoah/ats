@@ -1,12 +1,13 @@
 "use client"
 
+
+import { notifyError } from "@/lib/notify"
 import { PinCreationTips } from "@/components/pin-create-tips"
 import { SuccessModal } from "@/components/success-modal"
 import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
-import { toast } from "@/components/ui/toast"
 import { changePINAsync } from "@/lib/actions/pin"
 import { ChangePINFormValues, changePINSchema } from "@/lib/validations/pin"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -14,6 +15,7 @@ import { IconPassword } from "@tabler/icons-react"
 import { PinIcon, LockKeyholeIcon } from "lucide-react"
 import { useState, useTransition } from "react"
 import { Controller, useForm } from "react-hook-form"
+import { PinPrompt } from "@/components/pin-prompt"
 
 export default function ChangePinForm() {
 
@@ -37,10 +39,7 @@ export default function ChangePinForm() {
             var response = await changePINAsync(payload)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -62,11 +61,13 @@ export default function ChangePinForm() {
                 control={control}
                 render={({ field, fieldState }) => (
                     <Field>
+                        <PinPrompt title="Enter your current PIN" description="Enter the 4-digit PIN you use today so we know it's you." />
+
                         <FieldLabel
                             htmlFor={field.name}
                             className="text-sm"
                         >
-                            PIN{" "}
+                            Current PIN{" "}
                             <span className="text-destructive">*</span>
                         </FieldLabel>
 
@@ -109,11 +110,13 @@ export default function ChangePinForm() {
                 control={control}
                 render={({ field, fieldState }) => (
                     <Field>
+                        <PinPrompt title="Choose a new PIN" description="Enter a new 4-digit PIN, then enter it again to confirm. It must be different from your current PIN." />
+
                         <FieldLabel
                             htmlFor={field.name}
                             className="text-sm"
                         >
-                            PIN{" "}
+                            New PIN{" "}
                             <span className="text-destructive">*</span>
                         </FieldLabel>
 
@@ -159,7 +162,7 @@ export default function ChangePinForm() {
                             htmlFor={field.name}
                             className="text-sm"
                         >
-                            Confirm PIN{" "}
+                            Confirm New PIN{" "}
                             <span className="text-destructive">*</span>
                         </FieldLabel>
 

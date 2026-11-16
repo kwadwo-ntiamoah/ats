@@ -1,6 +1,6 @@
 "use server"
 
-import { getApiErrorMessage } from "../errors"
+import { getApiErrorMessage, getUnexpectedErrorMessage } from "../errors"
 import { sendAsync } from "../network/client"
 import { getCookieValue } from "../network/session"
 import { GcbTransferFormValues, gcbTransferSchema, LocalTransferFormValues, localTransferSchema, SelfTransferFormValues, selfTransferSchema } from "../validations/transfer"
@@ -43,7 +43,7 @@ export async function getTransferDetailsAsync(accountNumber: string): Promise<Ge
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -95,7 +95,7 @@ export async function selfTransferAsync(values: SelfTransferFormValues): Promise
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -147,7 +147,7 @@ export async function gcbTransferAsync(values: GcbTransferFormValues): Promise<G
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -200,7 +200,7 @@ export async function localTransferAsync(values: LocalTransferFormValues): Promi
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }

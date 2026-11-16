@@ -1,6 +1,6 @@
 "use server"
 
-import { getApiErrorMessage } from "../errors";
+import { getApiErrorMessage, getUnexpectedErrorMessage } from "../errors";
 import { sendAsync } from "../network/client";
 import { getCookieValue, setCookieValue } from "../network/session";
 import { logger } from "../logger";
@@ -52,7 +52,7 @@ export async function getOtpAsync(token: string): Promise<GetOtpResult> {
         return { success: true }
 
     } catch (err) {
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         logger.error({ err }, "Get OTP failed");
         return { success: false, error: message }
 
@@ -97,7 +97,7 @@ export async function validateOtpAsync(otp: string, token: string): Promise<Vali
             data: apiData
         }
     } catch (err) {
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         logger.error({ err }, "Validate OTP failed");
         return { success: false, error: message }
 

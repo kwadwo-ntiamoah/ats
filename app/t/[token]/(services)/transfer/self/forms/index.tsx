@@ -1,5 +1,8 @@
 "use client"
 
+
+import { formatGhs, formatReceiptDate } from "@/lib/format"
+import { notifyError } from "@/lib/notify"
 import { DownloadReceiptButton } from "@/components/download-receipt-button"
 import { FormSkeleton } from "@/components/form-skeleton"
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp"
@@ -9,7 +12,6 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "@/components/ui/toast"
 import { Account, getAccountBalanceAsync, getAccountsAsync } from "@/lib/actions/account"
 import { getTransferDetailsAsync, selfTransferAsync, TransferEnquiry } from "@/lib/actions/transfer"
 import { SelfTransferFormValues, selfTransferSchema } from "@/lib/validations/transfer"
@@ -67,10 +69,7 @@ export default function SelfTransferForm() {
             var response = await selfTransferAsync(payload)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -146,10 +145,7 @@ function TransferDetails({ step }: { step: number }) {
             var response = await getAccountsAsync({ isLinked: true });
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -202,7 +198,7 @@ function TransferDetails({ step }: { step: number }) {
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                         >
                             <SelectTrigger
                                 id={field.name}
@@ -247,7 +243,7 @@ function TransferDetails({ step }: { step: number }) {
                                         <span className="text-muted-foreground">
                                             Available balance:{" "}
                                             <span className="font-medium text-foreground">
-                                                {new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(balance)}
+                                                {formatGhs(balance)}
                                             </span>
                                         </span>
                                     </>
@@ -282,7 +278,7 @@ function TransferDetails({ step }: { step: number }) {
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                         >
                             <SelectTrigger
                                 id={field.name}
@@ -429,19 +425,13 @@ function TransactionConfirmation({
             ])
 
             if (!fromRes.success) {
-                toast.add({
-                    title: "Warning",
-                    description: fromRes.error,
-                });
+                notifyError(fromRes.error);
 
                 return;
             }
 
             if (!toRes.success) {
-                toast.add({
-                    title: "Warning",
-                    description: toRes.error,
-                });
+                notifyError(toRes.error);
 
                 return;
             }
@@ -467,7 +457,7 @@ function TransactionConfirmation({
         { label: "To", value: `${details.toAccountName} (${details.toAccount})` },
         {
             label: "Amount",
-            value: new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(details.amount)
+            value: formatGhs(details.amount)
         },
         { label: "Narration", value: details.narration },
     ]
@@ -561,10 +551,7 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: Transfe
         { label: "Narration", value: receipt.narration },
         {
             label: "Date",
-            value: new Intl.DateTimeFormat("en-GH", {
-                dateStyle: "medium",
-                timeStyle: "short",
-            }).format(receipt.completedAt)
+            value: formatReceiptDate(receipt.completedAt)
         },
     ]
 
@@ -579,7 +566,7 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: Transfe
                     <p className="text-base font-medium">Transfer successful</p>
 
                     <p className="text-2xl font-semibold tracking-tight">
-                        {new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(receipt.amount)}
+                        {formatGhs(receipt.amount)}
                     </p>
                 </div>
 

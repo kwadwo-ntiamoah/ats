@@ -1,6 +1,6 @@
 "use server"
 
-import { getApiErrorMessage } from "../errors"
+import { getApiErrorMessage, getUnexpectedErrorMessage } from "../errors"
 import { sendAsync } from "../network/client"
 import { getCookieValue } from "../network/session"
 import { AirtimeFormValues, airtimeSchema } from "../validations/airtime"
@@ -51,7 +51,7 @@ export async function buyAirtimeAsync(values: AirtimeFormValues): Promise<BuyAir
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }

@@ -1,6 +1,9 @@
 "use client"
 
+
+import { notifyError } from "@/lib/notify"
 import { FormSkeleton } from "@/components/form-skeleton"
+import { maskAccountNumber } from "@/lib/utils"
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp"
 import { SuccessModal } from "@/components/success-modal"
 import { Button } from "@/components/ui/button"
@@ -9,14 +12,15 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import { toast } from "@/components/ui/toast"
 import { Account, addAccountAsync, getAccountsAsync, getBalanceAsync, removeAccountAsync } from "@/lib/actions/account"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { RemoveAccountFormValues, removeAccountSchema } from "@/lib/validations/account"
 import { CheckBalanceFormValues, checkBalanceSchema } from "@/lib/validations/check_balance"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { CodeIcon, LightbulbIcon, LockIcon, WalletIcon } from "lucide-react"
 import { useEffect, useState, useTransition } from "react"
 import { Controller, useForm } from "react-hook-form"
+import { PinPrompt } from "@/components/pin-prompt"
 
 
 export default function RemoveAccountForm() {
@@ -35,6 +39,8 @@ export default function RemoveAccountForm() {
     const [open, setOpen] = useState(false)
     const [accounts, setAccounts] = useState<Account[]>([])
     const [message, setMessage] = useState("")
+    // PRF-009: the details the customer entered, held while they confirm the removal
+    const [pendingRemoval, setPendingRemoval] = useState<RemoveAccountFormValues | null>(null)
 
     const inputGroupClass = `
         py-5 px-2
@@ -48,10 +54,7 @@ export default function RemoveAccountForm() {
             var response = await getAccountsAsync({ isLinked: true });
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -60,26 +63,51 @@ export default function RemoveAccountForm() {
         })
     }, [])
 
-    const onsubmitAsync = (payload: RemoveAccountFormValues) => {
+    // The form only asks for confirmation; the account is removed once the customer confirms.
+    const onsubmitAsync = (payload: RemoveAccountFormValues) => setPendingRemoval(payload)
+
+    const confirmRemoval = () => {
+        const payload = pendingRemoval
+        setPendingRemoval(null)
+        if (!payload) return
+
         startTransition(async () => {
             var response = await removeAccountAsync(payload)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
 
-            setMessage(`You have successfully removed your account ${getValues("account")}`)
+            setMessage(`You have successfully removed your account ${maskAccountNumber(getValues("account"))}`)
             setOpen(true)
             reset()
         })
     }
 
     if (accountsPending) return <FormSkeleton />
+
+    // A profile must keep at least one account (the API enforces this too), so there is
+    // nothing to remove until the customer has added a second one.
+    if (accounts.length === 1) {
+        return (
+            <Empty>
+                <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                        <WalletIcon />
+                    </EmptyMedia>
+                    <EmptyTitle>This is your only linked account</EmptyTitle>
+                    <EmptyDescription>
+                        Your profile needs at least one account. To remove this one, add another account first.
+                    </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                    <ReturnToWhatsapp />
+                </EmptyContent>
+            </Empty>
+        )
+    }
 
     return (
         <>
@@ -93,13 +121,13 @@ export default function RemoveAccountForm() {
                                 htmlFor={field.name}
                                 className="text-sm"
                             >
-                                Select your Primary Account{" "}
+                                Account to remove{" "}
                                 <span className="text-destructive">*</span>
                             </FieldLabel>
 
                             <Select
                                 value={field.value}
-                                onValueChange={field.onChange}
+                                onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                             >
                                 <SelectTrigger
                                     id={field.name}
@@ -150,6 +178,8 @@ export default function RemoveAccountForm() {
                     control={control}
                     render={({ field, fieldState }) => (
                         <Field>
+                            <PinPrompt description="Enter your 4-digit PIN to remove this account. Never share it with anyone." />
+
                             <FieldLabel
                                 htmlFor={field.name}
                                 className="text-sm"
@@ -190,10 +220,30 @@ export default function RemoveAccountForm() {
                     )}
                 />
 
-                <Button type="submit" className="w-full">
-                    {pending ? <Spinner /> : "Get Balance"}
+                <Button type="submit" className="w-full" disabled={pending}>
+                    {pending ? <Spinner /> : "Remove Account"}
                 </Button>
             </form>
+
+            <Dialog open={pendingRemoval !== null} onOpenChange={(isOpen) => { if (!isOpen) setPendingRemoval(null) }}>
+                <DialogContent className="sm:max-w-sm" showCloseButton={false}>
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-medium">Remove this account?</DialogTitle>
+                        <DialogDescription className="text-sm">
+                            Are you sure you want to remove {maskAccountNumber(pendingRemoval?.account ?? "")} from Sidi?
+                            You won&apos;t be able to use it on WhatsApp until you add it again.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-2">
+                        <Button type="button" variant="destructive" className="w-full" onClick={confirmRemoval}>
+                            Yes, remove it
+                        </Button>
+                        <Button type="button" variant="outline" className="w-full" onClick={() => setPendingRemoval(null)}>
+                            Cancel
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <SuccessModal open={open} onOpenChange={setOpen} title="Account removed successfully" message={message} />
 

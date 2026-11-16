@@ -1,5 +1,8 @@
 "use client"
 
+
+import { formatGhs, formatReceiptDate } from "@/lib/format"
+import { notifyError } from "@/lib/notify"
 import { DownloadReceiptButton } from "@/components/download-receipt-button"
 import { FormSkeleton } from "@/components/form-skeleton"
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp"
@@ -8,7 +11,6 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import { toast } from "@/components/ui/toast"
 import { Account, getAccountBalanceAsync, getAccountsAsync } from "@/lib/actions/account"
 import { buyAirtimeAsync } from "@/lib/actions/airtime"
 import { getTransferDetailsAsync } from "@/lib/actions/transfer"
@@ -78,10 +80,7 @@ export default function AirtimeForm() {
             var response = await buyAirtimeAsync(payload)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -157,10 +156,7 @@ function AirtimeDetails({ step }: { step: number }) {
             var response = await getAccountsAsync({ isLinked: true });
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -213,7 +209,7 @@ function AirtimeDetails({ step }: { step: number }) {
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                         >
                             <SelectTrigger
                                 id={field.name}
@@ -258,7 +254,7 @@ function AirtimeDetails({ step }: { step: number }) {
                                         <span className="text-muted-foreground">
                                             Available balance:{" "}
                                             <span className="font-medium text-foreground">
-                                                {new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(balance)}
+                                                {formatGhs(balance)}
                                             </span>
                                         </span>
                                     </>
@@ -288,7 +284,7 @@ function AirtimeDetails({ step }: { step: number }) {
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                         >
                             <SelectTrigger
                                 id={field.name}
@@ -453,10 +449,7 @@ function TransactionConfirmation({
             const fromRes = await getTransferDetailsAsync(fromAccount)
 
             if (!fromRes.success) {
-                toast.add({
-                    title: "Warning",
-                    description: fromRes.error,
-                });
+                notifyError(fromRes.error);
 
                 return;
             }
@@ -485,7 +478,7 @@ function TransactionConfirmation({
         { label: "Phone Number", value: details.phoneNumber },
         {
             label: "Amount",
-            value: new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(details.amount)
+            value: formatGhs(details.amount)
         },
     ]
 
@@ -580,10 +573,7 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: Airtime
         { label: "Phone Number", value: receipt.phoneNumber },
         {
             label: "Date",
-            value: new Intl.DateTimeFormat("en-GH", {
-                dateStyle: "medium",
-                timeStyle: "short",
-            }).format(receipt.completedAt)
+            value: formatReceiptDate(receipt.completedAt)
         },
     ]
 
@@ -602,7 +592,7 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: Airtime
                     )}
 
                     <p className="text-2xl font-semibold tracking-tight">
-                        {new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(receipt.amount)}
+                        {formatGhs(receipt.amount)}
                     </p>
                 </div>
 

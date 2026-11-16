@@ -20,8 +20,8 @@ export default function OnboardingSuccessPage() {
                                 You're all set
                             </h1>
                             <p className="text-sm text-muted-foreground leading-relaxed">
-                                Your account has been created successfully. You can now return
-                                to WhatsApp to continue.
+                                You're now registered for GCB WhatsApp Banking. Return to
+                                WhatsApp to start using our services.
                             </p>
                         </div>
 

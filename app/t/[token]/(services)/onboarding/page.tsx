@@ -1,5 +1,7 @@
 "use client"
 
+
+import { notifyError } from "@/lib/notify"
 import { IdVerificationFormValues, idVerificationSchema } from "@/lib/validations/id_verification";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useTransition } from "react";
@@ -13,7 +15,6 @@ import { Spinner } from "@/components/ui/spinner";
 import TitleWrapper from "@/components/title-wrapper";
 import ProgressBar from "./components/progress-bar";
 import { verifyGhanaCardAgainstFCUBSAsync } from "@/lib/actions/onboarding";
-import { toast } from "@/components/ui/toast";
 
 
 export default function OnboardingPage() {
@@ -46,10 +47,7 @@ export default function OnboardingPage() {
             var response = await verifyGhanaCardAgainstFCUBSAsync(values);
 
             if (!response.success) {
-                 toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                 notifyError(response.error);
 
                 return;
             }
@@ -72,7 +70,7 @@ export default function OnboardingPage() {
     return (
         <TitleWrapper title={title} description={description} >
             <div className="flex flex-col">
-                <ProgressBar progress={25} label="1 of 3" />
+                <ProgressBar progress={33} label="Step 1 of 3" />
                 <form onSubmit={form.handleSubmit(onsubmitAsync)} className="w-full flex flex-col space-y-5 ">
                     <Controller
                         name="ghanaCard"

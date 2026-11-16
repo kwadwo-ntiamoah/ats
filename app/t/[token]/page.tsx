@@ -1,12 +1,13 @@
 "use client";
 
+
+import { notifyError } from "@/lib/notify"
 import { useEffect, useTransition, useState } from "react";
 import { validateTokenAsync } from "@/lib/actions/token";
 import { getOtpAsync } from "@/lib/actions/otp";
 import InvalidLink from "../components/invalid-link";
 import { OtpOverlay } from "../components/otp-overlay";
 import { useParams } from "next/navigation";
-import { toast } from "@/components/ui/toast";
 import { useRouter } from "next/navigation";
 import { FormSkeleton } from "@/components/form-skeleton";
 import { PageLoader } from "@/components/page-loader";
@@ -47,10 +48,7 @@ export default function TransactionPage() {
             console.log(linkDetails)
 
             if (!linkDetails.success) {
-                toast.add({
-                    title: "Warning",
-                    description: linkDetails.error,
-                });
+                notifyError(linkDetails.error);
                 setStatus("invalid");
                 return;
             }

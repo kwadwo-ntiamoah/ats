@@ -1,14 +1,16 @@
 "use client"
 
+
+import { formatGhs, formatReceiptDate } from "@/lib/format"
+import { notifyError } from "@/lib/notify"
 import { DownloadReceiptButton } from "@/components/download-receipt-button"
 import { FormSkeleton } from "@/components/form-skeleton"
 import { ReturnToWhatsapp } from "@/components/return-to-whatsapp"
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import { toast } from "@/components/ui/toast"
 import { Account, getAccountBalanceAsync, getAccountsAsync } from "@/lib/actions/account"
 import { DataPackage, buyDataAsync, getDataPackagesAsync } from "@/lib/actions/data"
 import { getTransferDetailsAsync } from "@/lib/actions/transfer"
@@ -23,11 +25,33 @@ import { useEffect, useState, useTransition } from "react"
 import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form"
 
 function formatCurrency(amount: number) {
-    return new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(amount)
+    return formatGhs(amount)
 }
 
 function formatPackageLabel(pkg: DataPackage) {
-    return `${pkg.name} (${pkg.volume}, ${pkg.validity}) — ${formatCurrency(pkg.price)}`
+    return `${pkg.volume} — ${formatCurrency(pkg.price)}`
+}
+
+/** Size and price on top, then the full name and validity, so nothing important is cut off. */
+function PackageOption({ pkg }: { pkg: DataPackage }) {
+    const details = [pkg.validity, pkg.name].filter(Boolean).join(" · ")
+
+    return (
+        <span className="flex min-w-0 flex-col text-left">
+            <span className="text-sm font-medium">{formatPackageLabel(pkg)}</span>
+            <span className="text-xs text-muted-foreground whitespace-normal">{details}</span>
+        </span>
+    )
+}
+
+/** Packages grouped into sections (Data, Video, Social Media, SMS, International), keeping the API's order. */
+function groupPackages(packages: DataPackage[]) {
+    const groups = new Map<string, DataPackage[]>()
+    for (const pkg of packages) {
+        const key = pkg.category || "Data Bundles"
+        groups.set(key, [...(groups.get(key) ?? []), pkg])
+    }
+    return [...groups.entries()]
 }
 
 type DataEnquiry = {
@@ -88,10 +112,7 @@ export default function DataForm() {
             var response = await buyDataAsync(payload)
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -173,10 +194,7 @@ function DataDetails({ step }: { step: number }) {
             var response = await getAccountsAsync({ isLinked: true });
 
             if (!response.success) {
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -219,10 +237,7 @@ function DataDetails({ step }: { step: number }) {
             if (!response.success) {
                 setPackages([])
 
-                toast.add({
-                    title: "Warning",
-                    description: response.error,
-                });
+                notifyError(response.error);
 
                 return;
             }
@@ -260,7 +275,7 @@ function DataDetails({ step }: { step: number }) {
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                         >
                             <SelectTrigger
                                 id={field.name}
@@ -335,7 +350,7 @@ function DataDetails({ step }: { step: number }) {
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                         >
                             <SelectTrigger
                                 id={field.name}
@@ -445,7 +460,7 @@ function DataDetails({ step }: { step: number }) {
 
                         <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => { field.onChange(value); field.onBlur() }}
                             disabled={!network || phoneNumber.length !== 10 || packagesPending}
                         >
                             <SelectTrigger
@@ -476,14 +491,19 @@ function DataDetails({ step }: { step: number }) {
                             </SelectTrigger>
 
                             <SelectContent>
-                                {packages.map((pkg) => (
-                                    <SelectItem
-                                        key={pkg.id}
-                                        value={pkg.id}
-                                        className="text-sm"
-                                    >
-                                        {formatPackageLabel(pkg)}
-                                    </SelectItem>
+                                {groupPackages(packages).map(([category, items]) => (
+                                    <SelectGroup key={category}>
+                                        <SelectLabel>{category}</SelectLabel>
+                                        {items.map((pkg) => (
+                                            <SelectItem
+                                                key={pkg.id}
+                                                value={pkg.id}
+                                                className="text-sm"
+                                            >
+                                                <PackageOption pkg={pkg} />
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -541,19 +561,13 @@ function TransactionConfirmation({
             ])
 
             if (!fromRes.success) {
-                toast.add({
-                    title: "Warning",
-                    description: fromRes.error,
-                });
+                notifyError(fromRes.error);
 
                 return;
             }
 
             if (!packagesRes.success) {
-                toast.add({
-                    title: "Warning",
-                    description: packagesRes.error,
-                });
+                notifyError(packagesRes.error);
 
                 return;
             }
@@ -679,10 +693,7 @@ function TransactionReceipt({ step, receipt }: { step: number; receipt?: DataRec
         { label: "Package", value: receipt.packageLabel },
         {
             label: "Date",
-            value: new Intl.DateTimeFormat("en-GH", {
-                dateStyle: "medium",
-                timeStyle: "short",
-            }).format(receipt.completedAt)
+            value: formatReceiptDate(receipt.completedAt)
         },
     ]
 

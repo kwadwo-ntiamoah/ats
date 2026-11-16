@@ -1,6 +1,6 @@
 "use server"
 
-import { getApiErrorMessage } from "../errors"
+import { getApiErrorMessage, getUnexpectedErrorMessage } from "../errors"
 import { sendAsync } from "../network/client"
 import { getCookieValue } from "../network/session"
 import { DataFormValues, dataSchema } from "../validations/data"
@@ -9,7 +9,9 @@ export type DataPackage = {
     id: string
     name: string
     volume: string
-    validity: string
+    validity: string | null
+    /** "Data Bundles", "Video Bundles" or "Social Media Bundles" */
+    category: string
     price: number
 }
 
@@ -38,7 +40,7 @@ export async function getDataPackagesAsync(network: string, phoneNumber: string)
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
@@ -90,7 +92,7 @@ export async function buyDataAsync(values: DataFormValues): Promise<BuyDataResul
     } catch (err) {
         console.error(err)
 
-        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = getUnexpectedErrorMessage(err);
         return { success: false, error: message }
 
     }
